@@ -2488,20 +2488,26 @@ def versionStringToInt(versionstring):
 class SchemaInfoCache(object):
     def __init__(self):
         self.path2info = {}
-    def __getitem__(self,path):
-        if path not in self.path2info: self.path2info[path] = SchemaInfo(path)
+
+    def __getitem__(self, path):
+        if path not in self.path2info:
+            if isinstance(path, basestring):
+                self.path2info[path] = SchemaInfo(path)
+            else:
+                self.path2info[path] = MultipleSchemaInfo(*path)
         return self.path2info[path]
+
 schemainfocache = SchemaInfoCache()
 
 class SchemaInfo(object):
-    def __init__(self,infodir=None):
+    def __init__(self, infodir=None):
         assert infodir is None or os.path.isdir(infodir),'SchemaInfo object can only be initialized from a directory, but "%s" is not an existing directory.' % infodir
         self.schemas = None
         self.convertorsfrom = None
         self.defaults = None
         self.packagedvaluesnames = None
         self.infodir = infodir
-            
+
     def getSchemas(self):
         """Returns a dictionary that links schema version strings to paths to the corresponding schema file.
         """
@@ -2527,7 +2533,7 @@ class SchemaInfo(object):
             self.convertorsfrom = {}
             if self.infodir is not None: self.addConverters(self.infodir)
         return self.convertorsfrom
-        
+
     def getDefaults(self):
         """Returns a dictionary that links version strings to paths to the corresponding default file.
         """
@@ -2578,7 +2584,7 @@ class SchemaInfo(object):
                 for cr in childroutes:
                     routes.append([sourceid]+cr)
         return routes
-        
+
     def addSchemas(self,dirpath):
         assert os.path.isdir(dirpath),'Provided path "%s" must be a directory.' % dirpath        
         for name in os.listdir(dirpath):
@@ -2598,7 +2604,7 @@ class SchemaInfo(object):
             fullpath = os.path.join(dirpath,name)
             if name.endswith('.converter') and os.path.isfile(fullpath):
                 self.addConverterFromXml(fullpath)
-                
+
     def addDefaults(self,dirpath):
         assert os.path.isdir(dirpath),'Provided path "%s" must be a directory.' % dirpath        
         for name in os.listdir(dirpath):
@@ -2606,12 +2612,12 @@ class SchemaInfo(object):
             if os.path.isfile(fullpath) and fullpath.endswith('.defaults'):
                 rootname,rootattr = util.getRootNodeInfo(fullpath)
                 self.getDefaults()[rootattr.get('version','')] = fullpath
-                        
+
     def addConverterFromXml(self,xmlpath):
         fw,bw = versioning.XmlConvertor.createClasses(xmlpath)
         self.addConverter(fw)
         if bw is not None: self.addConverter(bw)
-        
+
     def addConverter(self,convertorclass):
         """Registers the specified convertor class. The source and target version that
         the convertor supports are part of the convertor class supplied, and are therefore
@@ -2630,4 +2636,34 @@ class SchemaInfo(object):
         Both direct and indirect (via another version) routes are ok.
         """
         return self.getConverter(sourceid,targetid) is not None
-            
+
+class MultipleSchemaInfo(SchemaInfo):
+    def __init__(self, *infodirs):
+        SchemaInfo.__init__(self)
+        self.sources = []
+        for infodir in infodirs:
+            self.sources.append(schemainfocache[infodir])
+
+    def getSchemas(self):
+        if self.schemas is None:
+            self.schemas = {}
+            self.packagedvaluesnames = set()
+            for source in reversed(self.sources):
+                self.schemas.update(source.getSchemas())
+                self.packagedvaluesnames |= source.packagedvaluesnames
+        return self.schemas
+
+    def getConverters(self):
+        if self.convertorsfrom is None:
+            self.convertorsfrom = {}
+            for source in reversed(self.sources):
+                for version, convertors in source.getConverters().items():
+                    self.convertorsfrom.setdefault(version, {}).update(convertors)
+        return self.convertorsfrom
+
+    def getDefaults(self):
+        if self.defaults is None:
+            self.defaults = {}
+            for source in reversed(self.sources):
+                self.defaults.update(source.getDefaults())
+        return self.defaults
