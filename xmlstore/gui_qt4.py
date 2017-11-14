@@ -2,7 +2,7 @@
 import datetime, sys, cPickle, StringIO
 
 # Import third-party modules
-from qt_compat import QtGui,QtCore
+from qt_compat import QtGui,QtCore,QtWidgets
 
 # Import our own custom modules
 import xmlstore,util,datatypes
@@ -72,7 +72,7 @@ def createEditor(node,parent=None,selectwithradio=False,**kwargs):
     parent QWidget.
     """
     assert isinstance(node,xmlstore.Node), 'First argument to createEditor must be of type node.'
-    assert parent is None or isinstance(parent,QtGui.QWidget), 'If a parent is supplied to createEditor, it must derive from QWidget.'
+    assert parent is None or isinstance(parent,QtWidgets.QWidget), 'If a parent is supplied to createEditor, it must derive from QWidget.'
     if 'editorclass' in kwargs:
         editorclass = kwargs.pop('editorclass')
     else:
@@ -87,7 +87,7 @@ def createEditor(node,parent=None,selectwithradio=False,**kwargs):
         else:
             lineedit = None
             if node.templatenode.hasAttribute('editable'): lineedit = editorclass(parent,node,**kwargs)
-            assert lineedit is None or isinstance(lineedit,QtGui.QLineEdit), 'Editor class must derive from QLineEdit.'
+            assert lineedit is None or isinstance(lineedit,QtWidgets.QLineEdit), 'Editor class must derive from QLineEdit.'
             editor = SelectEditor(parent,node,lineedit=lineedit,**kwargs)
             
     if editor is not None and hasattr(editor,'separate'):
@@ -112,6 +112,7 @@ class AbstractPropertyEditor(object):
     control loses focus. A combobox might call it directly after the currently
     selected item changes.
     """
+    propertyEditingFinished = QtCore.Signal(bool)
     def __init__(self,parent,node):
         pass
 
@@ -120,11 +121,7 @@ class AbstractPropertyEditor(object):
     def value(self):
         pass
     def onPropertyEditingFinished(self,*args,**kwargs):
-        # NB this *requires* an old-style signal in PyQt4, because AbstractPropertyEditor does not inherit from QObject.
-        # The class *cannot* inherit from QObject because classes that derive from AbstractPropertyEditor
-        # will also derive from another QtGui class - and inheriting from multiple Qt4 classes simultaneously is
-        # not permitted.
-        self.emit(QtCore.SIGNAL('propertyEditingFinished(bool)'),kwargs.get('forceclose',False))
+        self.propertyEditingFinished.emit(kwargs.get('forceclose',False))
            
     # Optional (static) methods that classes should implement if the value can
     # be represented by a QtCore.QVariant object.
@@ -142,7 +139,7 @@ class AbstractPropertyEditor(object):
 
     @staticmethod
     def displayValue(delegate,painter,option,index):
-        QtGui.QItemDelegate.paint(delegate,painter,option,index)
+        QtWidgets.QItemDelegate.paint(delegate,painter,option,index)
         
 # =======================================================================
 # Functions for converting between Qt date/time object and Python
@@ -167,20 +164,20 @@ def datetime2qtdatetime(dt):
 # Editors for built-in data types
 # =======================================================================
 
-class StringEditor(AbstractPropertyEditor,QtGui.QLineEdit):
+class StringEditor(AbstractPropertyEditor,QtWidgets.QLineEdit):
     """Editor for unicode string.
     """
     def __init__(self,parent,node,**kwargs):
-        QtGui.QLineEdit.__init__(self,parent)
+        QtWidgets.QLineEdit.__init__(self,parent)
         AbstractPropertyEditor.__init__(self,parent,node)
         self.editingFinished.connect(self.onPropertyEditingFinished)
         
     def value(self):
-        return unicode(QtGui.QLineEdit.text(self))
+        return unicode(QtWidgets.QLineEdit.text(self))
 
     def setValue(self,value):
         if value is None: value = ''
-        QtGui.QLineEdit.setText(self,value)
+        QtWidgets.QLineEdit.setText(self,value)
         
     @staticmethod
     def convertFromQVariant(value):
@@ -190,11 +187,11 @@ class StringEditor(AbstractPropertyEditor,QtGui.QLineEdit):
     def convertToQVariant(value):
         return unicode(value)
 
-class IntEditor(AbstractPropertyEditor,QtGui.QSpinBox):
+class IntEditor(AbstractPropertyEditor,QtWidgets.QSpinBox):
     """Editor for integer.
     """
     def __init__(self,parent,node,**kwargs):
-        QtGui.QSpinBox.__init__(self,parent)
+        QtWidgets.QSpinBox.__init__(self,parent)
         AbstractPropertyEditor.__init__(self,parent,node)
         
         templatenode = node.templatenode
@@ -214,10 +211,10 @@ class IntEditor(AbstractPropertyEditor,QtGui.QSpinBox):
         
     def value(self):
         self.interpretText()
-        return QtGui.QSpinBox.value(self)
+        return QtWidgets.QSpinBox.value(self)
 
     def setValue(self,value):
-        if value is not None: QtGui.QSpinBox.setValue(self,value)
+        if value is not None: QtWidgets.QSpinBox.setValue(self,value)
 
     @staticmethod
     def convertFromQVariant(value):
@@ -266,11 +263,11 @@ class AbstractSelectEditor(AbstractPropertyEditor):
                 ichild += 1
         return None
 
-class SelectEditor(AbstractSelectEditor,QtGui.QComboBox):
+class SelectEditor(AbstractSelectEditor,QtWidgets.QComboBox):
     """Editor for a selection from a list, represented by an integer.
     """
     def __init__(self,parent,node,lineedit=None,**kwargs):
-        QtGui.QComboBox.__init__(self,parent)
+        QtWidgets.QComboBox.__init__(self,parent)
         AbstractSelectEditor.__init__(self,parent,node)
         self.lineedit = lineedit
         if lineedit is not None:
@@ -326,9 +323,9 @@ class SimpleSelectEditor(SelectEditor):
             if opt==value: return i
         return None
 
-class SelectEditorRadio(AbstractSelectEditor,QtGui.QButtonGroup):
+class SelectEditorRadio(AbstractSelectEditor,QtWidgets.QButtonGroup):
     def __init__(self,parent,node,**kwargs):
-        QtGui.QButtonGroup.__init__(self,parent)
+        QtWidgets.QButtonGroup.__init__(self,parent)
         AbstractSelectEditor.__init__(self,parent,node)
 
         for ichild,label,description in self.getOptions():
@@ -349,11 +346,11 @@ class SelectEditorRadio(AbstractSelectEditor,QtGui.QButtonGroup):
     def buttonFromValue(self,value):
         return self.button(self.indexFromValue(value))
 
-class BoolEditor(AbstractPropertyEditor,QtGui.QComboBox):
+class BoolEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     """Editor for a boolean value.
     """
     def __init__(self,parent,node,**kwargs):
-        QtGui.QComboBox.__init__(self,parent)
+        QtWidgets.QComboBox.__init__(self,parent)
         AbstractPropertyEditor.__init__(self,parent,node)
         self.addItem('Yes',True)
         self.addItem('No', False)
@@ -378,11 +375,11 @@ class BoolEditor(AbstractPropertyEditor,QtGui.QComboBox):
     def convertToQVariant(value):
         return bool(value)
 
-class DateTimeEditor(AbstractPropertyEditor,QtGui.QDateTimeEdit):
+class DateTimeEditor(AbstractPropertyEditor,QtWidgets.QDateTimeEdit):
     """Editor for a datetime object.
     """
     def __init__(self,parent,node,**kwargs):
-        QtGui.QDateTimeEdit.__init__(self,parent)
+        QtWidgets.QDateTimeEdit.__init__(self,parent)
         AbstractPropertyEditor.__init__(self,parent,node)
         self.editingFinished.connect(self.onPropertyEditingFinished)
         
@@ -407,18 +404,18 @@ class DateTimeEditor(AbstractPropertyEditor,QtGui.QDateTimeEdit):
         assert isinstance(value,datetime.datetime), 'Supplied object is not of class datetime.datetime.'
         return datetime2qtdatetime(value)
 
-class DurationEditor(QtGui.QWidget,AbstractPropertyEditor):
+class DurationEditor(AbstractPropertyEditor,QtWidgets.QWidget):
     """Editor for a duration (time span).
     """
     def __init__(self,parent,node,**kwargs):
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
-        lo = QtGui.QHBoxLayout()
+        lo = QtWidgets.QHBoxLayout()
         
         self.spinValue = QtGui.QDoubleSpinBox(self)
         self.spinValue.setMinimum(0.)
         
-        self.comboUnits = QtGui.QComboBox(self)
+        self.comboUnits = QtWidgets.QComboBox(self)
         self.comboUnits.addItems(['seconds','minutes','hours','days'])
 
         lo.addWidget(self.spinValue)
@@ -531,11 +528,11 @@ class ScientificDoubleValidator(QtGui.QValidator):
     def setSuffix(self,suffix):
         self.suffix = suffix
 
-class ScientificDoubleEditor(QtGui.QLineEdit,AbstractPropertyEditor):
+class ScientificDoubleEditor(AbstractPropertyEditor,QtWidgets.QLineEdit):
     """Editor for a floating point value.
     """
     def __init__(self,parent,node=None,**kwargs):
-        QtGui.QLineEdit.__init__(self,parent)
+        QtWidgets.QLineEdit.__init__(self,parent)
 
         self.curvalidator = ScientificDoubleValidator(self)
         self.setValidator(self.curvalidator)
@@ -575,11 +572,11 @@ class ScientificDoubleEditor(QtGui.QLineEdit,AbstractPropertyEditor):
         self.setText(strvalue+self.suffix)
 
     def focusInEvent(self,e):
-        QtGui.QLineEdit.focusInEvent(self,e)
+        QtWidgets.QLineEdit.focusInEvent(self,e)
         self.selectAll()
 
     def selectAll(self):
-        QtGui.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
+        QtWidgets.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
 
     def setMinimum(self,minimum):
         self.curvalidator.minimum = minimum
@@ -602,12 +599,12 @@ class ScientificDoubleEditor(QtGui.QLineEdit,AbstractPropertyEditor):
     def convertToQVariant(value):
         return float(value)
             
-class ColorEditor(QtGui.QComboBox,AbstractPropertyEditor):
+class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     """Editor for a color. Allows selection from a list of predefined colors,
     or defining a custom color via the last entry in the list.
     """
     def __init__(self,parent,node=None,**kwargs):
-        QtGui.QComboBox.__init__(self,parent)
+        QtWidgets.QComboBox.__init__(self,parent)
         self.activated.connect(self.onActivated)
         self.allownone = (node is not None and node.templatenode.getAttribute('allownone')) or (node is None and kwargs.get('allownone',False))
         if self.allownone:
@@ -689,13 +686,13 @@ class ColorEditor(QtGui.QComboBox,AbstractPropertyEditor):
     @staticmethod
     def displayValue(delegate,painter,option,index):
         value = index.data(QtCore.Qt.EditRole)
-        if not value.isValid(): return QtGui.QItemDelegate.paint(delegate,painter,option,index)
+        if not value.isValid(): return QtWidgets.QItemDelegate.paint(delegate,painter,option,index)
         value = QtGui.QColor(value)
         
         # Get the rectangle to fill
-        style = QtGui.qApp.style()
-        xOffset = style.pixelMetric(QtGui.QStyle.PM_FocusFrameHMargin,option)
-        yOffset = style.pixelMetric(QtGui.QStyle.PM_FocusFrameVMargin,option)
+        style = QtWidgets.qApp.style()
+        xOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
+        yOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameVMargin,option)
         rect = option.rect.adjusted(xOffset,yOffset,-xOffset,-yOffset)
         rect.setWidth(rect.height())
         
@@ -718,9 +715,9 @@ class ColorEditor(QtGui.QComboBox,AbstractPropertyEditor):
         coltup = (value.red,value.green,value.blue)
         return ColorEditor.color2name.get(coltup,'custom')
 
-class PrivateWindowEditor(QtGui.QWidget,AbstractPropertyEditor):
+class PrivateWindowEditor(AbstractPropertyEditor,QtWidgets.QWidget):
     def __init__(self,node,editor,parent=None):
-        QtGui.QWidget.__init__(self,parent)
+        QtWidgets.QWidget.__init__(self,parent)
         self.node = node
         self.editor = editor
 
@@ -731,9 +728,9 @@ class PrivateWindowEditor(QtGui.QWidget,AbstractPropertyEditor):
         return self.editor.value()
         
     def showEvent(self,ev):
-        dialog = QtGui.QDialog(self,QtCore.Qt.Tool)
+        dialog = QtWidgets.QDialog(self,QtCore.Qt.Tool)
         dialog.setWindowTitle(self.node.getText(detail=1))
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0,0,0,0)
         layout.addWidget(self.editor)
         dialog.setLayout(layout)
@@ -742,12 +739,12 @@ class PrivateWindowEditor(QtGui.QWidget,AbstractPropertyEditor):
         self.onPropertyEditingFinished(forceclose=True)
         dialog.destroy()
 
-class StringWithImageEditor(QtGui.QComboBox,AbstractPropertyEditor):
+class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     """Widget for selecting an image, represented internally by a string.
     """
-    class Delegate(QtGui.QItemDelegate):
+    class Delegate(QtWidgets.QItemDelegate):
         def __init__(self,parent):
-            QtGui.QItemDelegate.__init__(self,parent)
+            QtWidgets.QItemDelegate.__init__(self,parent)
             self.owner = parent
             
         def paint(self,painter,option,index):
@@ -755,8 +752,8 @@ class StringWithImageEditor(QtGui.QComboBox,AbstractPropertyEditor):
             
         def sizeHint(self,option,index):
             h = max(option.fontMetrics.height(),self.owner.height)
-            w = self.owner.width+2*QtGui.QStyle.PM_FocusFrameHMargin
-            #if label: w += option.fontMetrics.width(label)+2*QtGui.QStyle.PM_FocusFrameHMargin
+            w = self.owner.width+2*QtWidgets.QStyle.PM_FocusFrameHMargin
+            #if label: w += option.fontMetrics.width(label)+2*QtWidgets.QStyle.PM_FocusFrameHMargin
             return QtCore.QSize(w,h)
     
     class Model(QtCore.QAbstractListModel):
@@ -782,7 +779,7 @@ class StringWithImageEditor(QtGui.QComboBox,AbstractPropertyEditor):
             return None
 
     def __init__(self,parent,node,items,**kwargs):
-        QtGui.QComboBox.__init__(self,parent)
+        QtWidgets.QComboBox.__init__(self,parent)
         AbstractPropertyEditor.__init__(self,parent,node)
 
         self.items = items
@@ -829,7 +826,7 @@ class StringWithImageEditor(QtGui.QComboBox,AbstractPropertyEditor):
         if qPixMap:
             option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
             delegate.drawBackground(painter,option,index)
-            xOffset = QtGui.qApp.style().pixelMetric(QtGui.QStyle.PM_FocusFrameHMargin,option)
+            xOffset = QtWidgets.qApp.style().pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
             delegate.drawDecoration(painter,option,rect.adjusted(xOffset,0,0,0),qPixMap)
             rect = rect.adjusted(xOffset*2+qPixMap.width(),0,0,0)
         label = cls.getLabel(value)
@@ -850,7 +847,7 @@ class StringWithImageEditor(QtGui.QComboBox,AbstractPropertyEditor):
 # values.
 # =======================================================================
 
-class PropertyDelegate(QtGui.QItemDelegate):
+class PropertyDelegate(QtWidgets.QItemDelegate):
     """a Qt delegate used to create editors for property values.
     Built to handle properties from our custom TypedStore,
     which stores typed properties in hierarchical structure (XML)
@@ -864,7 +861,7 @@ class PropertyDelegate(QtGui.QItemDelegate):
 
     def createEditor(self, parent, option, index):
         """Creates the editor widget for the model item at the given index.
-        Inherited from QtGui.QItemDelegate.
+        Inherited from QtWidgets.QItemDelegate.
         """
         node = index.internalPointer()
 
@@ -877,7 +874,7 @@ class PropertyDelegate(QtGui.QItemDelegate):
 
         # Install event filter that captures key events for view from the editor (e.g. return press).
         editor.installEventFilter(self)
-        editor.connect(editor,QtCore.SIGNAL('propertyEditingFinished(bool)'),self.editingFinished)
+        editor.propertyEditingFinished.connect(self.editingFinished)
         
         return editor
         
@@ -889,7 +886,7 @@ class PropertyDelegate(QtGui.QItemDelegate):
         
     def paint(self,painter,option,index):
         """Paints the current value for display (not editing!)
-        Inherited from QtGui.QItemDelegate.
+        Inherited from QtWidgets.QItemDelegate.
         """
         node = index.internalPointer()
         if index.column()==1 and node.canHaveValue():
@@ -898,11 +895,11 @@ class PropertyDelegate(QtGui.QItemDelegate):
             if editorclass is None: editorclass = AbstractPropertyEditor
             editorclass.displayValue(self,painter,option,index)
         else:
-            QtGui.QItemDelegate.paint(self,painter,option,index)
+            QtWidgets.QItemDelegate.paint(self,painter,option,index)
             
     def setEditorData(self, editor,index):
         """Sets value in the editor widget, for the model item at the given index.
-        Inherited from QtGui.QItemDelegate.
+        Inherited from QtWidgets.QItemDelegate.
         """
         node = index.internalPointer()
         value = node.getValue(usedefault=True)
@@ -912,7 +909,7 @@ class PropertyDelegate(QtGui.QItemDelegate):
     def setModelData(self, editor, model, index):
         """Obtains the value from the editor widget, and set it for the model item
         at the given index.
-        Inherited from QtGui.QItemDelegate.
+        Inherited from QtWidgets.QItemDelegate.
         """
         node = index.internalPointer()
         value = editor.value()
@@ -926,7 +923,7 @@ class PropertyDelegate(QtGui.QItemDelegate):
         editor.hide()
         editor.destroy()
           
-class ArrayEditor(QtGui.QTableView,AbstractPropertyEditor):
+class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
     separate = True
         
     class Delegate(PropertyDelegate):
@@ -1137,7 +1134,7 @@ class ArrayEditor(QtGui.QTableView,AbstractPropertyEditor):
             return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
             
     def __init__(self,parent,node,**kwargs):
-        QtGui.QTableView.__init__(self,parent)
+        QtWidgets.QTableView.__init__(self,parent)
         self.setItemDelegate(self.Delegate(self,editorclass=self.elementeditorclass,**kwargs))
         self.node = node
         self.datamodel = None
@@ -1147,7 +1144,7 @@ class ArrayEditor(QtGui.QTableView,AbstractPropertyEditor):
             for ind in self.selectionModel().selectedIndexes():
                 self.datamodel.clearData(ind)
         else:
-            QtGui.QTableView.keyPressEvent(self,event)
+            QtWidgets.QTableView.keyPressEvent(self,event)
                 
     def value(self):
         return self.datamodel.getDataMatrix()
@@ -1190,7 +1187,8 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         self.storeinterface.connect('beforeVisibilityChange',self.beforeNodeVisibilityChange)
         self.storeinterface.connect('afterVisibilityChange', self.afterNodeVisibilityChange)
         self.storeinterface.connect('afterChange',self.onNodeChanged)
-        self.storeinterface.connect('afterStoreChange',self.reset)
+        self.storeinterface.connect('beforeStoreChange',self.beginResetModel)
+        self.storeinterface.connect('afterStoreChange',self.endResetModel)
 
         self.inheritingchecks = False
         
@@ -1554,7 +1552,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
 # collapse/expand.
 # =======================================================================
 
-class ExtendedTreeView(QtGui.QTreeView):
+class ExtendedTreeView(QtWidgets.QTreeView):
     """Extended QTreeView class, providing support for selectively expanding/
     collapsing parts of the tree, and for showing a context menu that allows the
     uses to reset nodes or branches. Works only with TypedStoreModel.
@@ -1623,7 +1621,7 @@ class ExtendedTreeView(QtGui.QTreeView):
         if not (resetself or resetchildren): return
         
         # Build context menu
-        menu = QtGui.QMenu(self)
+        menu = QtWidgets.QMenu(self)
         if resetself:     actReset = menu.addAction('Reset value')
         if resetchildren: actResetChildren = menu.addAction('Reset entire branch')
         actChosen = menu.exec_(e.globalPos())
@@ -1637,7 +1635,7 @@ class ExtendedTreeView(QtGui.QTreeView):
         Currently, if the addition of rows gave the parent its very first child, the
         parent node is automatically expanded.
         """
-        QtGui.QTreeView.rowsInserted(self,parent,start,end)
+        QtWidgets.QTreeView.rowsInserted(self,parent,start,end)
                 
         # If needed, expand all child rows that were set to a non-default value.
         if self.autoexpandnondefaults:
@@ -1702,35 +1700,35 @@ class TypedStoreTreeView(ExtendedTreeView):
         ExtendedTreeView.destroy(self,destroyWindow,destroySubWindows)
         
             
-class PropertyEditorDialog(QtGui.QDialog):
+class PropertyEditorDialog(QtWidgets.QDialog):
     """Minimal dialog that can be used to edit the values of a TypedStore.
     Incoporates the ExtendedTreeView attached to a TypedStoreModel.
     """
     
     def __init__(self,parent,store,title='',instructions='',loadsave=False,flags=QtCore.Qt.Dialog,icon=None,loadhook=None,rootnode=None):
         if icon is not None: flags |= QtCore.Qt.WindowSystemMenuHint
-        QtGui.QDialog.__init__(self, parent, flags)
+        QtWidgets.QDialog.__init__(self, parent, flags)
 
         self.store = store
         self.tree = TypedStoreTreeView(self,self.store,expanddepth=3,resizecolumns=False,rootnode=rootnode)
 
         self.setSizeGripEnabled(True)
 
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0,0,0,0)
 
         if instructions!='':
-            lab = QtGui.QLabel(instructions,self)
+            lab = QtWidgets.QLabel(instructions,self)
             lab.setWordWrap(True)
             layout.addWidget(lab)
 
         layout.addWidget(self.tree)
         
         if loadsave:
-            bnLoad = QtGui.QPushButton('Load...')
-            bnSave = QtGui.QPushButton('Save...')
-            bnReset = QtGui.QPushButton('Reset')
-            layoutButtons = QtGui.QHBoxLayout()
+            bnLoad = QtWidgets.QPushButton('Load...')
+            bnSave = QtWidgets.QPushButton('Save...')
+            bnReset = QtWidgets.QPushButton('Reset')
+            layoutButtons = QtWidgets.QHBoxLayout()
             layoutButtons.addWidget(bnLoad)
             layoutButtons.addWidget(bnSave)
             layoutButtons.addWidget(bnReset)
@@ -1753,13 +1751,13 @@ class PropertyEditorDialog(QtGui.QDialog):
     def resizeColumns(self):
         """Intelligently resize the column widths.
         """
-        self.tree.header().resizeSections(QtGui.QHeaderView.Stretch)
+        self.tree.header().resizeSections(QtWidgets.QHeaderView.Stretch)
         self.tree.resizeColumnToContents(0)
         maxwidth = .65*self.width()
         if self.tree.columnWidth(0)>maxwidth: self.tree.setColumnWidth(0,maxwidth)
         
     def onLoad(self):
-        path,selectedFilter = QtGui.QFileDialog.getOpenFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
+        path,selectedFilter = QtWidgets.QFileDialog.getOpenFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
         path = unicode(path)
         if path=='': return
         try:
@@ -1772,7 +1770,7 @@ class PropertyEditorDialog(QtGui.QDialog):
         self.lastpath = path
     
     def onSave(self):
-        path,selectedFilter = QtGui.QFileDialog.getSaveFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
+        path,selectedFilter = QtWidgets.QFileDialog.getSaveFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
         path = unicode(path)
         if path=='': return
         self.store.save(path)
@@ -1973,8 +1971,8 @@ class PropertyEditor(object):
         """
         if icon is None: icon = (self.node.getText(detail=2,minimumdetail=2) is not None)
 
-        if not isinstance(boxlayout,QtGui.QHBoxLayout):
-            layout = QtGui.QHBoxLayout()
+        if not isinstance(boxlayout,QtWidgets.QHBoxLayout):
+            layout = QtWidgets.QHBoxLayout()
         else:
             layout = boxlayout
         
@@ -2001,7 +1999,7 @@ class PropertyEditor(object):
         assert self.unit is None, 'Cannot create unit because it has already been created.'
         unittext = self.node.getUnit()
         if unittext is None: unittext=''
-        self.unit = QtGui.QLabel(unittext,self.editor.parent())
+        self.unit = QtWidgets.QLabel(unittext,self.editor.parent())
         if self.allowhide and self.node.isHidden(): self.unit.setVisible(False)
         return self.unit
         
@@ -2013,7 +2011,7 @@ class PropertyEditor(object):
         if text is None:
             text = self.node.getText(detail=detail,capitalize=True)
             if addcolon: text += ': '
-        self.label = QtGui.QLabel(text,self.editor.parent())
+        self.label = QtWidgets.QLabel(text,self.editor.parent())
         if wrap: self.label.setWordWrap(True)
         if self.allowhide and self.node.isHidden(): self.label.setVisible(False)
         return self.label
@@ -2024,9 +2022,9 @@ class PropertyEditor(object):
         if self.label is not None: self.label.setVisible(visible)
         if self.icon  is not None: self.icon.setVisible(visible)
         if self.unit  is not None: self.unit.setVisible(visible)
-        if isinstance(self.editor,QtGui.QWidget):
+        if isinstance(self.editor,QtWidgets.QWidget):
             self.editor.setVisible(visible)
-        elif isinstance(self.editor,QtGui.QButtonGroup):
+        elif isinstance(self.editor,QtWidgets.QButtonGroup):
             for bn in self.editor.buttons(): bn.setVisible(visible)
 
     def destroy(self,layout=None):
@@ -2047,7 +2045,7 @@ class PropertyEditor(object):
         if self.unit is not None:
             self.unit.destroy()
             self.unit = None
-        if isinstance(self.editor,QtGui.QWidget):
+        if isinstance(self.editor,QtWidgets.QWidget):
             self.editor.destroy()
         self.editor = None
 
@@ -2071,9 +2069,9 @@ class PropertyEditor(object):
         """
         visible = not self.node.isHidden()
         if self.allowhide: return self.setVisible(visible)
-        if isinstance(self.editor,QtGui.QWidget):
+        if isinstance(self.editor,QtWidgets.QWidget):
             self.editor.setEnabled(visible)
-        elif isinstance(self.editor,QtGui.QButtonGroup):
+        elif isinstance(self.editor,QtWidgets.QButtonGroup):
             for bn in self.editor.buttons(): bn.setEnabled(visible)
 
     def addChangeHandler(self,callback):
@@ -2106,15 +2104,15 @@ class PropertyEditor(object):
         elif nodetype=='bool' and boolwithcheckbox:
             # We have to create an editor for a boolean, and use a checkbox rather
             # than the default editor (combobox-like)
-            editor = QtGui.QCheckBox(node.getText(detail=1,capitalize=True),parent)
+            editor = QtWidgets.QCheckBox(node.getText(detail=1,capitalize=True),parent)
             editor.stateChanged.connect(self.onChange)
         else:
             # Create a normal editor that derives from AbstractPropertyEditor
             editor = createEditor(node,parent,**kwargs)
-            editor.connect(editor,QtCore.SIGNAL('propertyEditingFinished(bool)'),self.onChange)
+            editor.propertyEditingFinished.connect(self.onChange)
             
         # Add what's-this information.
-        if whatsthis and isinstance(editor,QtGui.QWidget):
+        if whatsthis and isinstance(editor,QtWidgets.QWidget):
             editor.setWhatsThis(node.getText(detail=2,capitalize=True))
             
         return editor
@@ -2122,7 +2120,7 @@ class PropertyEditor(object):
     def setEditorData(self,editor,node):
         """Set the value of the editor to the current value of the underlying node.
         """
-        if not isinstance(editor,(AbstractPropertyEditor,QtGui.QCheckBox,QtGui.QButtonGroup)): return
+        if not isinstance(editor,(AbstractPropertyEditor,QtWidgets.QCheckBox,QtWidgets.QButtonGroup)): return
         self.suppresschangeevent = True
         value = node.getValue(usedefault=True)
         if value is None: return
@@ -2138,7 +2136,7 @@ class PropertyEditor(object):
     def setNodeData(self,editor,node):
         """Set the value of the underlying node to the current value of the editor.
         """
-        if not isinstance(editor,(AbstractPropertyEditor,QtGui.QCheckBox,QtGui.QButtonGroup)): return True
+        if not isinstance(editor,(AbstractPropertyEditor,QtWidgets.QCheckBox,QtWidgets.QButtonGroup)): return True
         nodetype = node.getValueType()
         if isinstance(editor,AbstractPropertyEditor):
             value = editor.value()

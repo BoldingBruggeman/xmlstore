@@ -517,7 +517,7 @@ class TypedStoreInterface(object):
     # ---------------------------------------------------------------------------
 
     def connect(self,eventname,handler):
-        assert eventname in ('beforeVisibilityChange','afterVisibilityChange','afterStoreChange','beforeChange','afterChange'), 'attempt to register for unknown event "%s".' % eventname
+        assert eventname in ('beforeVisibilityChange','afterVisibilityChange','beforeStoreChange','afterStoreChange','beforeChange','afterChange'), 'attempt to register for unknown event "%s".' % eventname
         assert eventname not in self.eventhandlers, 'handler for event "%s" exists.' % eventname
         self.eventhandlers[eventname] = handler
 
@@ -560,8 +560,11 @@ class TypedStoreInterface(object):
         else:
             self.eventhandlers['afterVisibilityChange']((node,),shownew,showhide)
 
+    def beforeStoreChange(self):
+        if 'beforeStoreChange' not in self.eventhandlers: return
+        self.eventhandlers['beforeStoreChange']()
+
     def afterStoreChange(self):
-        #print 'afterStoreChange'
         if 'afterStoreChange' not in self.eventhandlers: return
         self.eventhandlers['afterStoreChange']()
 
@@ -1681,6 +1684,8 @@ class TypedStore(util.referencedobject):
         path to an XML file (i.e., a string), an XML document, or an XML
         node. None may be specified instead to clear the store of all values.
         """
+        self.beforeStoreChange()
+
         if self.root is not None: self.root.destroy()
 
         if 'linkedobjects' in self.context:
@@ -2455,6 +2460,13 @@ class TypedStore(util.referencedobject):
             if i in self.blockedinterfaces: continue
             if not i.onBeforeChange(node,newvalue): return False
         return True
+
+    def beforeStoreChange(self):
+        """Called internally after the store changes, i.e., all values have changed."""
+        self.blockedinterfaces = set(self.interfaces)
+        for i in self.interfaces:
+            i.beforeStoreChange()
+            self.blockedinterfaces.remove(i)
 
     def afterStoreChange(self):
         """Called internally after the store changes, i.e., all values have changed."""
