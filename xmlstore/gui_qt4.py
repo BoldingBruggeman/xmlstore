@@ -329,7 +329,7 @@ class SelectEditorRadio(AbstractSelectEditor,QtWidgets.QButtonGroup):
         AbstractSelectEditor.__init__(self,parent,node)
 
         for ichild,label,description in self.getOptions():
-            opt = QtGui.QRadioButton(label,parent)
+            opt = QtWidgets.QRadioButton(label,parent)
             if description!='':
                 opt.setWhatsThis(description)
             self.addButton(opt,ichild)
@@ -412,7 +412,7 @@ class DurationEditor(AbstractPropertyEditor,QtWidgets.QWidget):
 
         lo = QtWidgets.QHBoxLayout()
         
-        self.spinValue = QtGui.QDoubleSpinBox(self)
+        self.spinValue = QtWidgets.QDoubleSpinBox(self)
         self.spinValue.setMinimum(0.)
         
         self.comboUnits = QtWidgets.QComboBox(self)
@@ -641,7 +641,7 @@ class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
         
     def onActivated(self,index):
         if index==self.count()-1:
-            col = QtGui.QColorDialog.getColor(QtGui.QColor(self.itemData(index)),self)
+            col = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.itemData(index)),self)
             self.setItemColor(index,col)
             self.onPropertyEditingFinished()
 
@@ -882,7 +882,7 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
         if not forceclose: return
         editor = self.sender()
         self.commitData.emit(editor)
-        self.closeEditor.emit(editor,QtGui.QAbstractItemDelegate.NoHint)
+        self.closeEditor.emit(editor,QtWidgets.QAbstractItemDelegate.NoHint)
         
     def paint(self,painter,option,index):
         """Paints the current value for display (not editing!)
@@ -2098,7 +2098,7 @@ class PropertyEditor(object):
         
         if groupbox:
             # We have to create a group box (not really an editor)
-            editor = QtGui.QGroupBox(node.getText(detail=1,capitalize=True),parent)
+            editor = QtWidgets.QGroupBox(node.getText(detail=1,capitalize=True),parent)
             #editor.setFlat(True)
             whatsthis = False
         elif nodetype=='bool' and boolwithcheckbox:
