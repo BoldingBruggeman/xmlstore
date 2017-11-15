@@ -2195,7 +2195,16 @@ class TypedStore(util.referencedobject):
         """
         if targetid is not None:
             (targetplatform,targetversion) = targetid.split('-')
-            targetversion = versionStringToInt(targetversion)
+            targetversion = tuple(map(int, targetversion.split('.')))
+
+        def compareVersions(x, y):
+            n = max(len(x), len(y))
+            x = x + (0,) * (n - len(x))
+            y = y + (0,) * (n - len(y))
+            for i, j in zip(x, y):
+                if i != j:
+                    return cmp(i, j)
+            return 0
 
         # Decompose source ids into name and (integer) version, but only take
         # source we can actually convert to the target version.
@@ -2204,10 +2213,10 @@ class TypedStore(util.referencedobject):
             if targetid is None or sid==targetid or cls.getSchemaInfo().hasConverter(sid,targetid):
                 (platform,version) = sid.split('-')
                 if requireplatform is None or requireplatform==platform:
-                    version = versionStringToInt(version)
+                    version = tuple(map(int, version.split('.')))
                     sourceinfo.append((platform,version,sid))
 
-        # Sort by platform (because we want the target platform first)
+        # Group by platform (because we want the target platform first)
         sourceinfoclasses = {}
         for sinf in sourceinfo:
             sourceinfoclasses.setdefault(sinf[0],[]).append(sinf)
@@ -2216,7 +2225,7 @@ class TypedStore(util.referencedobject):
         result = []
         for sourceplatform in sourceinfoclasses.keys():
             infos = sourceinfoclasses[sourceplatform]
-            infos.sort(cmp=lambda x,y: cmp(y[1],x[1]))
+            infos.sort(cmp=lambda x, y: compareVersions(y[1], x[1]))
             if targetid is not None and sourceplatform==targetplatform:
                 result = infos+result
             else:
@@ -2484,18 +2493,6 @@ class TypedStore(util.referencedobject):
         """Called internally after a node is hidden (showhide=True) or deleted (showhide=False)."""
         for i in self.interfaces:
             if i not in self.blockedinterfaces: i.afterVisibilityChange(node,visible,showhide)
-
-def versionStringToInt(versionstring):
-    """Converts a version string to a representative integer.
-    Versions may consist of components separated by a dot, e.g., "major.minor.build"
-    In that case, individual components cannot exceed 255.
-    """
-    comps = versionstring.split('.')
-    version,base = 0,1
-    for c in comps[::-1]:
-        version += int(c)*base
-        base *= 256
-    return version
 
 class SchemaInfoCache(object):
     def __init__(self):
