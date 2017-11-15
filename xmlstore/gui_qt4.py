@@ -1766,7 +1766,7 @@ class PropertyEditorDialog(QtWidgets.QDialog):
             else:
                 self.store.load(path)
         except Exception,e:
-            QtGui.QMessageBox.critical(self, 'Unable to load settings from file', unicode(e), QtGui.QMessageBox.Ok, QtGui.QMessageBox.NoButton)
+            QtWidgets.QMessageBox.critical(self, 'Unable to load settings from file', unicode(e), QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.NoButton)
         self.lastpath = path
     
     def onSave(self):
