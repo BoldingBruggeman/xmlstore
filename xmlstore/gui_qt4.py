@@ -94,7 +94,7 @@ def createEditor(node,parent=None,selectwithradio=False,**kwargs):
         editor = PrivateWindowEditor(node,editor,parent)
         
     return editor
-             
+
 def registerEditor(typename,editorclass):
     """Registers an editor class for a user-defined data type.
     """
@@ -112,17 +112,19 @@ class AbstractPropertyEditor(object):
     control loses focus. A combobox might call it directly after the currently
     selected item changes.
     """
-    propertyEditingFinished = QtCore.Signal(bool)
     def __init__(self,parent,node):
-        pass
+        self.propertyEditingFinished_callbacks = []
 
     def setValue(self,value):
         pass
+
     def value(self):
         pass
+
     def onPropertyEditingFinished(self,*args,**kwargs):
-        self.propertyEditingFinished.emit(kwargs.get('forceclose',False))
-           
+        for callback in self.propertyEditingFinished_callbacks:
+            callback(kwargs.get('forceclose', False))
+
     # Optional (static) methods that classes should implement if the value can
     # be represented by a QtCore.QVariant object.
     @staticmethod
@@ -409,6 +411,7 @@ class DurationEditor(AbstractPropertyEditor,QtWidgets.QWidget):
     """
     def __init__(self,parent,node,**kwargs):
         QtWidgets.QWidget.__init__(self, parent)
+        AbstractPropertyEditor.__init__(self, parent, node)
 
         lo = QtWidgets.QHBoxLayout()
         
@@ -533,6 +536,7 @@ class ScientificDoubleEditor(AbstractPropertyEditor,QtWidgets.QLineEdit):
     """
     def __init__(self,parent,node=None,**kwargs):
         QtWidgets.QLineEdit.__init__(self,parent)
+        AbstractPropertyEditor.__init__(self, parent, node)
 
         self.curvalidator = ScientificDoubleValidator(self)
         self.setValidator(self.curvalidator)
@@ -605,6 +609,8 @@ class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     """
     def __init__(self,parent,node=None,**kwargs):
         QtWidgets.QComboBox.__init__(self,parent)
+        AbstractPropertyEditor.__init__(self, parent, node)
+
         self.activated.connect(self.onActivated)
         self.allownone = (node is not None and node.templatenode.getAttribute('allownone')) or (node is None and kwargs.get('allownone',False))
         if self.allownone:
@@ -718,6 +724,8 @@ class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
 class PrivateWindowEditor(AbstractPropertyEditor,QtWidgets.QWidget):
     def __init__(self,node,editor,parent=None):
         QtWidgets.QWidget.__init__(self,parent)
+        AbstractPropertyEditor.__init__(self, parent, node)
+
         self.node = node
         self.editor = editor
 
@@ -874,7 +882,7 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
 
         # Install event filter that captures key events for view from the editor (e.g. return press).
         editor.installEventFilter(self)
-        editor.propertyEditingFinished.connect(self.editingFinished)
+        editor.propertyEditingFinished_callbacks.append(self.editingFinished)
         
         return editor
         
@@ -1132,20 +1140,21 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
 
         def flags(self,index):
             return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-            
+
     def __init__(self,parent,node,**kwargs):
         QtWidgets.QTableView.__init__(self,parent)
+        AbstractPropertyEditor.__init__(self, parent, node)
         self.setItemDelegate(self.Delegate(self,editorclass=self.elementeditorclass,**kwargs))
         self.node = node
         self.datamodel = None
-        
+
     def keyPressEvent(self,event):
         if event.key()==QtCore.Qt.Key_Delete:
             for ind in self.selectionModel().selectedIndexes():
                 self.datamodel.clearData(ind)
         else:
             QtWidgets.QTableView.keyPressEvent(self,event)
-                
+
     def value(self):
         return self.datamodel.getDataMatrix()
 
@@ -2109,12 +2118,12 @@ class PropertyEditor(object):
         else:
             # Create a normal editor that derives from AbstractPropertyEditor
             editor = createEditor(node,parent,**kwargs)
-            editor.propertyEditingFinished.connect(self.onChange)
+            editor.propertyEditingFinished_callbacks.append(self.onChange)
             
         # Add what's-this information.
         if whatsthis and isinstance(editor,QtWidgets.QWidget):
             editor.setWhatsThis(node.getText(detail=2,capitalize=True))
-            
+
         return editor
 
     def setEditorData(self,editor,node):
