@@ -2216,14 +2216,17 @@ class TypedStore(util.referencedobject):
             (targetplatform,targetversion) = targetid.split('-')
             targetversion = tuple(map(int, targetversion.split('.')))
 
-        def compareVersions(x, y):
-            n = max(len(x), len(y))
-            x = x + (0,) * (n - len(x))
-            y = y + (0,) * (n - len(y))
-            for i, j in zip(x, y):
-                if i != j:
-                    return cmp(i, j)
-            return 0
+        class Version(object):
+            def __init__(self, numbers):
+                self.numbers = numbers
+            def __lt__(self, other):
+                n = max(len(self.numbers), len(other.numbers))
+                x = self.numbers + (0,) * (n - len(self.numbers))
+                y = other.numbers + (0,) * (n - len(other.numbers))
+                for i, j in zip(x, y):
+                    if i != j:
+                        return i < j
+                return False
 
         # Decompose source ids into name and (integer) version, but only take
         # source we can actually convert to the target version.
@@ -2244,7 +2247,7 @@ class TypedStore(util.referencedobject):
         result = []
         for sourceplatform in sourceinfoclasses.keys():
             infos = sourceinfoclasses[sourceplatform]
-            infos.sort(cmp=lambda x, y: compareVersions(y[1], x[1]))
+            infos.sort(key=lambda x: Version(x[1]), reverse=True)
             if targetid is not None and sourceplatform==targetplatform:
                 result = infos+result
             else:
