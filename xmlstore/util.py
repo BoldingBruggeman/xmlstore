@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # Import modules from standard Python (>= 2.4) library
 import datetime,time,xml.dom.minidom,codecs
 
@@ -56,17 +58,18 @@ class referencedobject(object):
         type2count = {}
         for obj,tb in zip(referencedobject.objs,referencedobject.tracebacks):
             if obj.refcount!=0:
-                print '%i references for %s.' % (obj.refcount,object.__str__(obj))
-                print ''.join(tb)
+                print('%i references for %s.' % (obj.refcount,object.__str__(obj)))
+                print(''.join(tb))
                 nrefs += obj.refcount
                 nobjs += 1
                 type2count[obj.__class__.__name__] = type2count.get(obj.__class__.__name__,0) + 1
         if nrefs==0:
-            print 'No remaining references.'
+            print('No remaining references.')
             return
-        print '%i objects have a total of %i references.' % (nobjs,nrefs)
-        for t,c in type2count.iteritems():
-            if c>0: print '%s: %i references.' % (t,c)
+        print('%i objects have a total of %i references.' % (nobjs,nrefs))
+        for t,c in type2count.items():
+            if c > 0:
+                print('%s: %i references.' % (t,c))
 
     def __init__(self):
         self.refcount=1
@@ -248,9 +251,9 @@ def copyNode(sourcenode,newparent,targetdoc=None,name=None,before=None):
     elif sourcenode.nodeType==sourcenode.TEXT_NODE:
         cpy = targetdoc.createTextNode(sourcenode.data)
     elif sourcenode.nodeType==sourcenode.COMMENT_NODE:
-		pass
+        pass
     else:
-        print 'WARNING: do not know how to copy node with type %s. Skipping...' % sourcenode.nodeType
+        print('WARNING: do not know how to copy node with type %s. Skipping...' % sourcenode.nodeType)
         
     # Insert new node
     if cpy is not None:

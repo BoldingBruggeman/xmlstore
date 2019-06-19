@@ -1,6 +1,8 @@
+from __future__ import print_function
+
 import re, xml.dom.minidom, os
 
-import util,datatypes
+from . import util, datatypes
 
 class Convertor(object):
     """Base class for conversion between TypedStore objects that differ
@@ -94,7 +96,7 @@ class Convertor(object):
                 elif node.canHaveValue():
                     # Node was not matched in the source store, but it should have a value.
                     # Insert the default value.
-                    #print '%s in version %s did not get a value from version %s' % (node,self.targetid,self.sourceid)
+                    #print('%s in version %s did not get a value from version %s' % (node,self.targetid,self.sourceid))
                     defaults.append('/'.join(node.location[len(target.location):]))
             
             # If the list with nodes that need a default value has not been built yet, use the current one.
@@ -107,7 +109,7 @@ class Convertor(object):
                 targetnode = target[path]
                 if targetnode.hasValue(): continue
                 sourcevalue = targetnode.getDefaultValue()
-                #print 'Using default value for %s/%s: %s' % (self.targetid,path,str(sourcevalue))
+                #print('Using default value for %s/%s: %s' % (self.targetid,path,str(sourcevalue)))
                 if sourcevalue is not None:
                     targetnode.setValue(sourcevalue)
                     if isinstance(sourcevalue,util.referencedobject): sourcevalue.release()
@@ -140,7 +142,7 @@ class XmlConvertor(Convertor):
             attr = {'fixedsourceid':sourceid,
                     'fixedtargetid':targetid,
                     'path':path}
-            #print 'Creating convertor class %s.' % (defaultname,)
+            #print('Creating convertor class %s.' % (defaultname,))
             return type(str(defaultname),(XmlConvertor,),attr)
         fw = createconvertor(sourceid,targetid)
         bw = createconvertor(targetid,sourceid)
@@ -152,7 +154,7 @@ class XmlConvertor(Convertor):
         a list of links between source and target version, and compiling any
         custom conversion code on the fly.
         """
-        #print 'Initializing converter %s.' % (cls.__name__,)
+        #print('Initializing converter %s.' % (cls.__name__,))
         xmlconvertor = xml.dom.minidom.parse(cls.path)
         root = xmlconvertor.documentElement
         assert root.localName=='converter','Root element of "%s" is called "%s", but root of converter xml must be called "converter".' % (cls.path,root.localName)
@@ -182,7 +184,8 @@ class XmlConvertor(Convertor):
         self.links = self.defaultlinks
         
     def convertCustom(self,source,target,callback=None):
-        if self.customconversion is not None: exec self.customconversion
+        if self.customconversion is not None:
+            exec(self.customconversion)
 
 class ConvertorChain(Convertor):
     """Generic class for multiple-step conversions.
@@ -204,13 +207,14 @@ class ConvertorChain(Convertor):
             convertor = self.chain[istep]
             temptargetid = convertor.targetid
             if callback is not None: callback(float(istep)/nsteps,'converting to version "%s".' % temptargetid)
-            if util.verbose: print 'Converting to temporary target "%s".' % temptargetid
+            if util.verbose:
+                print('Converting to temporary target "%s".' % temptargetid)
             temptarget = source.fromSchemaName(temptargetid)
             temptargets.append(temptarget)
             curmatches = {}
             convertor.convert(source,temptarget,callback=stepcallback,matchednodes=curmatches,**kwargs)
             if oldmatches is not None:
-                oldmatches = dict([(targetnode,oldmatches[sourcenode]) for targetnode,sourcenode in curmatches.iteritems() if sourcenode in oldmatches])
+                oldmatches = dict([(targetnode,oldmatches[sourcenode]) for targetnode,sourcenode in curmatches.items() if sourcenode in oldmatches])
             else:
                 oldmatches = curmatches
             source = temptarget
@@ -218,10 +222,11 @@ class ConvertorChain(Convertor):
         convertor = self.chain[-1]
         istep = nsteps-1
         if callback is not None: callback(float(istep)/nsteps,'converting to version "%s".' % convertor.targetid)
-        if util.verbose: print 'Converting to final target "%s".' % convertor.targetid
+        if util.verbose:
+            print('Converting to final target "%s".' % convertor.targetid)
         curmatches = {}
         convertor.convert(source,target,callback=stepcallback,matchednodes=curmatches,**kwargs)
-        oldmatches = dict([(targetnode,oldmatches[sourcenode]) for targetnode,sourcenode in curmatches.iteritems() if sourcenode in oldmatches])
+        oldmatches = dict([(targetnode,oldmatches[sourcenode]) for targetnode,sourcenode in curmatches.items() if sourcenode in oldmatches])
         for temptarget in temptargets: temptarget.release()
 
         if matchednodes is not None: matchednodes.update(oldmatches)

@@ -1,6 +1,10 @@
-import datetime,re,os,os.path,shutil,StringIO
+from __future__ import print_function
 
-import util
+import datetime,re,os,os.path,shutil,io
+
+from . import util
+
+unicode = type(u'')
 
 types = {}
 
@@ -442,7 +446,7 @@ class DateTime(DataTypeSimple,datetime.datetime):
                 # Initialize from datetime object.
                 dt = args[0]
                 args = [dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo]
-            elif isinstance(args[0],basestring):
+            elif isinstance(args[0], (str, u''.__class__)):
                 # Initialize from a single string (assume ISO date format).
                 match = DateTime.reDateTime.match(args[0])
                 if match is None: raise Exception('Cannot parse "%s" as datetime object.' % args[0])
@@ -770,7 +774,7 @@ class DataFile(DataType,util.referencedobject):
         if not self.isValid(): return
         targetpath = context['targetcontainerpath']
         if self.isBelowPath(targetpath):
-            #print 'Reading "%s" into memory to prevent it from being overwritten.' % self.name
+            #print('Reading "%s" into memory to prevent it from being overwritten.' % self.name)
             memdf = DataFileMemory.fromDataFile(self)
             memdf.save(node,context)
             memdf.release()
@@ -820,7 +824,7 @@ class DataFile(DataType,util.referencedobject):
         Deriving classes MUST implement getAsReadOnlyFile and/or getData!
         """
         data = self.getData(textmode=textmode,readonly=True)
-        return StringIO.StringIO(data)
+        return io.StringIO(data)
 
     def getData(self,textmode=True,readonly=False):
         """Returns the contents of the data file as a string of bytes.
@@ -872,7 +876,7 @@ class DataFile(DataType,util.referencedobject):
         tarinfo = tarfile.TarInfo(filename)
         tarinfo.size = len(data)
         tarinfo.mtime = time.time()
-        tfile.addfile(tarinfo,StringIO.StringIO(data))
+        tfile.addfile(tarinfo,io.StringIO(data))
 
     def isBelowPath(self,path):
         """Returns True if the data file is located somewhere below the specified
@@ -1155,7 +1159,7 @@ class DataContainerDirectory(DataContainer):
         if not os.path.isdir(path):
             try:
                 os.mkdir(path)
-            except Exception,e:
+            except Exception as e:
                 raise Exception('Unable to create directory "%s". Error: %s' % (path,str(e)))
         self.path = path
 
@@ -1241,9 +1245,9 @@ class DataContainerZip(DataContainer):
     
     def __init__(self,source,mode='r'):
         DataContainer.__init__(self)
-        if isinstance(source,basestring):
+        if isinstance(source, (str, u''.__class__)):
             assert os.path.isfile(source) or mode=='w', 'Cannot initialize DataContainerZip with supplied path; it does not point to an existing file, but is also not opened for writing.'
-        elif isinstance(source,StringIO.StringIO):
+        elif isinstance(source,io.StringIO):
             assert mode=='w', 'Can initialize DataContainerZip with StringIO object only in write-only mode.'
         elif isinstance(source,DataFile):
             assert mode=='r', 'Can initialize DataContainerZip with file-like object only in read-only mode.'
@@ -1255,7 +1259,7 @@ class DataContainerZip(DataContainer):
         self.source = source
         if isinstance(self.source,DataFile):
             self.source.addref()
-        elif isinstance(self.source,basestring):
+        elif isinstance(self.source, (str, u''.__class__)):
             self.path = self.source
         self.setMode(mode)
 
@@ -1287,10 +1291,10 @@ class DataContainerZip(DataContainer):
         """
         if newname is None: newname = datafile.name
         if self.mode=='r': self.setMode('a')
-        #if isinstance(self.source,StringIO.StringIO):
-        #    print 'Adding "%s" to in-memory archive...' % (newname,)
+        #if isinstance(self.source,io.StringIO):
+        #    print('Adding "%s" to in-memory archive...' % (newname,))
         #else:
-        #    print 'Adding "%s" to archive "%s"...' % (newname,self.path)
+        #    print('Adding "%s" to archive "%s"...' % (newname,self.path))
         datafile.addToZip(self.zfile,newname)
         return self.DataFileZip(self,newname)
 
@@ -1304,7 +1308,7 @@ class DataContainerZip(DataContainer):
         storage. This may involve flushing buffers etc.
         """
         if self.zfile is None: return
-        if isinstance(self.source,basestring):
+        if isinstance(self.source, (str, u''.__class__)):
             # Immediately re-open the ZIP file so we keep a lock on it.
             self.setMode('r')
         else:
@@ -1324,7 +1328,7 @@ class DataContainerZip(DataContainer):
             if mode==self.mode: return
             self.zfile.close()
         self.mode = mode
-        if isinstance(self.source,StringIO.StringIO):
+        if isinstance(self.source,io.StringIO):
             # Writing to in-memory data block.
             assert self.mode=='w', 'In-memory data blocks can only be written to, not read from.'
             self.zfile = zipfile.ZipFile(self.source,self.mode,zipfile.ZIP_DEFLATED)
@@ -1386,7 +1390,7 @@ class DataContainerTar(DataContainer):
 
     def __init__(self,path,mode='r'):
         DataContainer.__init__(self)
-        assert isinstance(path,basestring), 'DataContainerTar must be initialized with a path to a exisitng/to-be-created tar/gz file.'
+        assert isinstance(path, (str, u''.__class__)), 'DataContainerTar must be initialized with a path to a exisitng/to-be-created tar/gz file.'
         assert os.path.isfile(path) or mode=='w', 'The path supplied to DataContainerTar does exist, and can therefore not be opened for reading.'
         self.mode = None
         self.tfile = None
@@ -1419,7 +1423,7 @@ class DataContainerTar(DataContainer):
         """
         if newname is None: newname = datafile.name
         if self.mode=='r': self.setMode('a')
-        #print 'Adding "%s" to archive "%s"...' % (newname,self.path)
+        #print('Adding "%s" to archive "%s"...' % (newname,self.path))
         datafile.addToTar(self.tfile,newname)
         return self.DataFileTar(self,newname)
 
@@ -1506,7 +1510,7 @@ class DataFileMemory(DataFile):
         """Returns the data stored in the data file as a read-only, file-like
         object.
         """
-        return StringIO.StringIO(self.data)
+        return io.StringIO(self.data)
 
     def getData(self,textmode=True,readonly=False):
         """Returns the contents of the object as a string of bytes.

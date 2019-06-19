@@ -7,11 +7,18 @@
 #   values and node visiblity, a set of default values, arbitrary data streams that are
 #   stored aside the XML value tree, encapsulating containers such as ZIP, and many other features.
 
+from __future__ import print_function
+
 # Import modules from standard Python library
-import re, xml.dom.minidom, os, StringIO, codecs
+import re, xml.dom.minidom, os, io, codecs
+
+try:
+    from collections import Mapping as DictMixin
+except ImportError:
+    from UserDict import DictMixin
 
 # Import own custom modules
-import util, datatypes, versioning
+from . import util, datatypes, versioning
 
 replaceNever             = 0
 replaceExistingValues    = 1
@@ -37,10 +44,10 @@ class Schema(object):
         provided, the created schema is cached, and returned on subsequent
         request for schemas with the same path.
         """
-        if cache and isinstance(source,basestring):
+        if cache and isinstance(source, (str, u''.__class__)):
             path = os.path.abspath(source)
             if path in Schema.cache:
-                #print 'Found schema "%s" in cache.' % path
+                #print('Found schema "%s" in cache.' % path)
                 schema = Schema.cache[path]
             else:
                 schema = Schema(source)
@@ -58,7 +65,7 @@ class Schema(object):
         
         # The template can be specified as a DOM object, or as string (i.e. path to XML file)
         path = ''
-        if isinstance(source,basestring):
+        if isinstance(source, (str, u''.__class__)):
             # The provided schema source is a string. It can be a path to a file or plain XML.
             if not sourceisxml:
                 # The provided source is a path.
@@ -246,7 +253,7 @@ class Schema(object):
         """For the given template node, registers that another node at the
         specified (potentially relative) path depends on it.
         """
-        #print '%s depends on %s' % (dependantnodepath,node.getAttribute('name'))
+        #print('%s depends on %s' % (dependantnodepath,node.getAttribute('name')))
         deplist = util.findDescendantNode(node,['dependentvariables'],create=True)
         depnode = self.dom.createElementNS(deplist.namespaceURI,'dependentvariable')
         depnode.setAttribute('path',dependantnodepath)
@@ -319,8 +326,7 @@ class Schema(object):
         printnode(fout,self.dom.documentElement,maxdepth,0,showhidden)
         fout.write('</table>\n')
 
-import UserDict
-class ShortcutDictionary(UserDict.DictMixin):
+class ShortcutDictionary(DictMixin):
     @staticmethod
     def fromDirectory(path,**kwargs):
         cache = ShortcutDictionary()
@@ -338,7 +344,13 @@ class ShortcutDictionary(UserDict.DictMixin):
         
     def __delitem__(self,item):
         del self.links[item]
-        
+
+    def __len__(self):
+        return len(self.links)
+
+    def __iter__(self):
+        return iter(self.links)
+
     def keys(self):
         return self.links.keys()
         
@@ -532,7 +544,7 @@ class TypedStoreInterface(object):
     def beforeVisibilityChange(self,node,shownew,showhide):
         assert isinstance(node,Node), 'Supplied object is not of type "Node" (but "%s").' % node
         assert node.isValid(), 'Supplied node %s is invalid (has already been destroyed).' % node
-        #print 'beforeVisibilityChange'
+        #print('beforeVisibilityChange')
         self.upcomingvizchange = node
         if 'beforeVisibilityChange' not in self.eventhandlers: return
         if self.blockNotifyOfHiddenNodes and self.getParent(node).isHidden(): return
@@ -548,7 +560,7 @@ class TypedStoreInterface(object):
         assert isinstance(node,Node), 'Supplied object is not of type "Node" (but "%s").' % node
         assert node.isValid(), 'Supplied node %s is invalid (has already been destroyed).' % node
         assert node==self.upcomingvizchange, 'The node supplied to afterVisibilityChange (%s) was not the last one supplied to beforeVisibilityChange (%s).' % (node,self.upcomingvizchange)
-        #print 'afterVisibilityChange'
+        #print('afterVisibilityChange')
         self.upcomingvizchange = None
         if 'afterVisibilityChange' not in self.eventhandlers: return
         if self.blockNotifyOfHiddenNodes and self.getParent(node).isHidden(): return
@@ -571,7 +583,7 @@ class TypedStoreInterface(object):
     def onBeforeChange(self,node,newvalue):
         assert isinstance(node,Node), 'Supplied object is not of type "Node" (but "%s").' % node
         assert node.isValid(), 'Supplied node %s is invalid (has already been destroyed).' % node
-        #print 'onBeforeChange'
+        #print('onBeforeChange')
         if 'beforeChange' not in self.eventhandlers: return True
         if node.isHidden() and self.blockNotifyOfHiddenNodes: return True
         return self.eventhandlers['beforeChange'](node,newvalue)
@@ -579,7 +591,7 @@ class TypedStoreInterface(object):
     def onChange(self,node,feature):
         assert isinstance(node,Node), 'Supplied object is not of type "Node" (but "%s").' % node
         assert node.isValid(), 'Supplied node %s is invalid (has already been destroyed).' % node
-        #print 'onChange'
+        #print('onChange')
         if 'afterChange' not in self.eventhandlers: return
         if node.isHidden() and self.blockNotifyOfHiddenNodes: return
         self.eventhandlers['afterChange'](node,feature)
@@ -587,7 +599,7 @@ class TypedStoreInterface(object):
     def onDefaultChange(self,node,feature):
         assert isinstance(node,Node), 'Supplied object is not of type "Node" (but "%s").' % node
         assert node.isValid(), 'Supplied node %s is invalid (has already been destroyed).' % node
-        #print 'onDefaultChange'
+        #print('onDefaultChange')
         if self.processDefaultChange==1 or (self.processDefaultChange==0 and not node.hasValue()):
             self.onChange(node,feature)
 
@@ -633,7 +645,7 @@ class Node(object):
                 assert maxoccurs==1 or minoccurs==0,'Node %s: for maxOccurs %s > 1, minOccurs must currently equal 0, but it is %i.' % (','.join(childloc),maxoccurs,minoccurs)
                 assert maxoccurs=='unbounded' or maxoccurs>=minoccurs, 'Node %s: the value of the "maxOccurs" (%i) attribute must be greater than or equal to that of "minOccurs" (%i).' % (','.join(childloc),maxoccurs,minoccurs)
                 if maxoccurs!='unbounded' and len(curvaluechildren)>maxoccurs:
-                    print 'Node "%s": number of children (%i) is greater than the imposed maximum (%i). Redundant child nodes will be deleted.' % (','.join(childloc),len(curvaluechildren),maxoccurs)
+                    print('Node "%s": number of children (%i) is greater than the imposed maximum (%i). Redundant child nodes will be deleted.' % (','.join(childloc),len(curvaluechildren),maxoccurs))
                     for vch in curvaluechildren[maxoccurs:]: self.valueroot.removeChild(vch)
                 for i in range(len(curvaluechildren),minoccurs):
                     curvaluechildren.append(None)
@@ -650,12 +662,12 @@ class Node(object):
             self.valuenode = curvaluechildren[0]
 
         # Check for existing value nodes that are not in the template.
-        for childid,childnodes in valuechildren.iteritems():
+        for childid,childnodes in valuechildren.items():
             # If this data type builds its own XML structure to store its data, it may
             # use child nodes, so do not complain about the children we do not know about.
             if not isinstance(self.getValueType(returnclass=True),datatypes.DataTypeSimple): break
             
-            print 'WARNING! Value "%s" below "%s" was unexpected and will be ignored.' % (childid,self.location)
+            print('WARNING! Value "%s" below "%s" was unexpected and will be ignored.' % (childid,self.location))
             for ch in childnodes: self.valueroot.removeChild(ch)
 
     def __str__(self):
@@ -693,7 +705,7 @@ class Node(object):
             valuetype = self.getValueType(returnclass=True)
             try:
                 value = valuetype.load(self.valuenode,self.controller.context,self.templatenode)
-            except ValueError,e:
+            except ValueError as e:
                 raise ValueError('%s: %s' % ('/'.join(self.location),e))
         if value is None and usedefault: value = self.getDefaultValue()
         return value
@@ -992,7 +1004,7 @@ class Node(object):
         with children of that name, or the id (string) set in its "id"
         child node.
         """
-        assert isinstance(id,int) or isinstance(id,basestring), 'Specified id must be an integer or a string.'
+        assert isinstance(id,int) or isinstance(id, (str, u''.__class__)), 'Specified id must be an integer or a string.'
         if isinstance(id,int):
             return self.removeChildren(childname,id,id)
         else:
@@ -1108,7 +1120,7 @@ class Node(object):
         return ret
         
     def __getitem__(self,path):
-        assert isinstance(path,basestring), 'Supplied node path is not a string: %s.' % path
+        assert isinstance(path, (str, u''.__class__)), 'Supplied node path is not a string: %s.' % path
         return self.getLocation(path.split('/'))
 
     def getLocation(self,location,createoptional=False):
@@ -1138,14 +1150,14 @@ class Node(object):
                 ich = 0
                 for chnode in node.children:
                     if chnode.location[-1]==childname:
-                        if secid is None or (isinstance(secid,int) and secid==ich) or (isinstance(secid,basestring) and secid==chnode.getSecondaryId()):
+                        if secid is None or (isinstance(secid,int) and secid==ich) or (isinstance(secid, (str, u''.__class__)) and secid==chnode.getSecondaryId()):
                             node = chnode
                             break
                         ich += 1
                 else:
                     # Child was not found, but if it is optional it can be created on request.
                     if createoptional and secid is not None:
-                        if isinstance(secid,basestring):
+                        if isinstance(secid, (str, u''.__class__)):
                             node = node.addChild(childname,id=secid)
                         else:
                             node = node.getChildByNumber(childname,secid,create=True)
@@ -1229,7 +1241,8 @@ class Node(object):
         """
         res = []
         owntype = self.getValueType(returnclass=True)
-        if isinstance(valuetype,basestring): valuetype = self.controller.getDataType(valuetype)
+        if isinstance(valuetype, (str, u''.__class__)):
+            valuetype = self.controller.getDataType(valuetype)
         if (allowderived and owntype is not None and issubclass(owntype,valuetype)) or owntype==valuetype:
             res.append(self)
         for ch in self.children:
@@ -1444,7 +1457,7 @@ class TypedStore(util.referencedobject):
             f = path.getAsReadOnlyFile()
             try:
                 valuedom = xml.dom.minidom.parse(f)
-            except Exception,e:
+            except Exception as e:
                 raise Exception('Unable to parse as XML: '+unicode(e))
             f.close()
         else:
@@ -1453,7 +1466,7 @@ class TypedStore(util.referencedobject):
                 raise Exception('Specified path "%s" does not exist, or is not a file.' % path)
             try:
                 valuedom = xml.dom.minidom.parse(path)
-            except Exception,e:
+            except Exception as e:
                 raise Exception('"%s" does not contain valid XML: %s' % (path,unicode(e)))
             container = datatypes.DataContainerDirectory(os.path.dirname(os.path.abspath(path)))
             
@@ -1470,7 +1483,8 @@ class TypedStore(util.referencedobject):
 
         if targetstore.version!=version and version!='':
             # The version of the loaded values does not match the version of the target store; convert it.
-            if util.verbose: print 'Value file "%s" has version "%s"; starting conversion to "%s".' % (path,version,targetstore.version)
+            if util.verbose:
+                print('Value file "%s" has version "%s"; starting conversion to "%s".' % (path,version,targetstore.version))
             tempstore = cls.fromSchemaName(version)
             tempstore.setStore(valuedom)
             if container is not None:
@@ -1497,7 +1511,7 @@ class TypedStore(util.referencedobject):
         Additional named arguments are passes to the constructor (__init__)
         of the data store class.
         """
-        if isinstance(path,basestring):
+        if isinstance(path, (str, u''.__class__)):
             # Container is provided as a string [path name]
             container = datatypes.DataContainer.fromPath(path)
         elif isinstance(path,datatypes.DataContainer):
@@ -1544,7 +1558,8 @@ class TypedStore(util.referencedobject):
         
         if targetstore.version!=version and version!='':
             # The version of the values file does not match the version of the target store; convert the values.
-            if util.verbose: print '%s "%s" has version "%s"; starting conversion to "%s".' % (packagetitle,path,version,targetstore.version)
+            if util.verbose:
+                print('%s "%s" has version "%s"; starting conversion to "%s".' % (packagetitle,path,version,targetstore.version))
             if callback is not None: callback(0.5,'converting scenario')
             tempstore = cls.fromSchemaName(version)
             tempstore.loadAll(container)
@@ -1592,7 +1607,8 @@ class TypedStore(util.referencedobject):
         self.blockedinterfaces = set()
 
         self.otherstores = otherstores
-        for v in self.otherstores.itervalues(): v.addref()
+        for v in self.otherstores.values():
+            v.addref()
 
         # Link to original source (if any)
         self.path = None
@@ -1635,11 +1651,13 @@ class TypedStore(util.referencedobject):
 
         # Release any linked objects
         if 'linkedobjects' in self.context:
-            for v in self.context['linkedobjects'].itervalues(): v.release()
+            for v in self.context['linkedobjects'].values():
+                v.release()
             del self.context['linkedobjects']
             
         # Release any linked stores
-        for v in self.otherstores.itervalues(): v.release()
+        for v in self.otherstores.values():
+            v.release()
         
         # Release all interfaces
         for i in self.interfaces: i.unlink()
@@ -1671,7 +1689,8 @@ class TypedStore(util.referencedobject):
         This function also clears the cache with external data objects.
         """
         if 'cache' in self.context:
-            for v in self.context['cache'].itervalues(): v.release()
+            for v in self.context['cache'].values():
+                v.release()
             del self.context['cache']
         if self.context.get('container',None) is not None:
             self.context['container'].release()
@@ -1689,14 +1708,14 @@ class TypedStore(util.referencedobject):
         if self.root is not None: self.root.destroy()
 
         if 'linkedobjects' in self.context:
-            for n,v in self.context['linkedobjects'].iteritems():
+            for n,v in self.context['linkedobjects'].items():
                 assert isinstance(v,util.referencedobject), 'Linked file %s is not of type util.referencedobject.' % n
                 v.release()
             del self.context['linkedobjects']
 
         templateroot = self.schema.getRoot()
 
-        assert valueroot is None or isinstance(valueroot,basestring) or isinstance(valueroot,xml.dom.Node), 'Supplied value root must None, a path to an XML file, or an XML node, but is %s.' % valueroot
+        assert valueroot is None or isinstance(valueroot, (str, u''.__class__)) or isinstance(valueroot,xml.dom.Node), 'Supplied value root must None, a path to an XML file, or an XML node, but is %s.' % valueroot
 
         valuedom,docpath = None,''
         if valueroot is None:
@@ -1705,7 +1724,7 @@ class TypedStore(util.referencedobject):
             valuedom = impl.createDocument(None, templateroot.getAttribute('name'), None)
             valueroot = valuedom.documentElement
             valueroot.setAttribute('version',self.version)
-        elif isinstance(valueroot,basestring):
+        elif isinstance(valueroot, (str, u''.__class__)):
             docpath = valueroot
             valuedom = xml.dom.minidom.parse(valueroot)
             valueroot = valuedom.documentElement
@@ -1781,7 +1800,7 @@ class TypedStore(util.referencedobject):
         were loaded (through "setStore"), or since "resetChanged" was called.
         """
         if self.changed: return True
-        for v in self.context.get('linkedobjects',{}).itervalues():
+        for v in self.context.get('linkedobjects',{}).values():
             if isinstance(v,TypedStore) and v.hasChanged(): return True
         return False
 
@@ -1790,7 +1809,7 @@ class TypedStore(util.referencedobject):
         See also "hasChanged".
         """
         self.changed = False
-        for v in self.context.get('linkedobjects',{}).itervalues():
+        for v in self.context.get('linkedobjects',{}).values():
             if isinstance(v,TypedStore): v.resetChanged()
 
     def __getitem__(self,path):
@@ -1962,7 +1981,7 @@ class TypedStore(util.referencedobject):
             self.validnodes -= set(nodes)
         
     def updateValidationHistory(self,validity):
-        for node,valid in validity.iteritems():
+        for node,valid in validity.items():
             if valid:
                 self.validnodes.add(node)
             else:
@@ -2082,7 +2101,7 @@ class TypedStore(util.referencedobject):
             """Validates nodes against a custom validation rule provided in XML.
             """
             def cleanup():
-                for value in namespace.itervalues():
+                for value in namespace.values():
                     if isinstance(value,util.referencedobject): value.release()
         
             def validate(namespace,affectednodes):
@@ -2100,8 +2119,8 @@ class TypedStore(util.referencedobject):
                             for data in ch.childNodes:
                                 if data.nodeType==data.CDATA_SECTION_NODE: break
                             code = compile(data.nodeValue,'<string>','exec')
-                            exec code in namespace
-                except ValidationException,e:
+                            exec(code, namespace)
+                except ValidationException as e:
                     # Flag all affected nodes as invalid and register the error message.
                     for node in affectednodes:
                         if node in validity: validity[node] = False
@@ -2173,7 +2192,7 @@ class TypedStore(util.referencedobject):
         a version string (a new TypedStore object with the desired version will be created)
         or an existing TypedStore object with the different version.
         """
-        if isinstance(target,basestring):
+        if isinstance(target, (str, u''.__class__)):
             if target==self.version:
                 return self.addref()
             target = self.fromSchemaName(target)
@@ -2296,7 +2315,7 @@ class TypedStore(util.referencedobject):
                 # the original source file of the original data store to be released.
                 progslicer.nextStep('redirecting variables with separate data to saved file.')
                 callback = progslicer.getStepCallback()
-                for imatch,(savednode,sourcenode) in enumerate(matches.iteritems()):
+                for imatch,(savednode,sourcenode) in enumerate(matches.items()):
                     callback(float(imatch)/len(matches),'redirecting variable %i.' % imatch)
                     cls = sourcenode.getValueType(returnclass=True)
                     if cls is not None and issubclass(cls,util.referencedobject):
@@ -2315,18 +2334,18 @@ class TypedStore(util.referencedobject):
 
             # Before opening the target container, allow nodes to prepare for saving to the specified path.
             # Specifically, nodes will read all files that might be overwritten into memory.
-            if isinstance(path,basestring):
+            if isinstance(path, (str, u''.__class__)):
                 self.context['targetcontainerpath'] = path
                 self.preparePersist()
                 del self.context['targetcontainerpath']
 
             # Open target container
-            if isinstance(path,basestring):
+            if isinstance(path, (str, u''.__class__)):
                 if targetisdir:
                     container = datatypes.DataContainerDirectory(path,create=True)
                 else:
                     container = datatypes.DataContainerZip(path,mode='w')
-            elif isinstance(path,StringIO.StringIO):
+            elif isinstance(path,io.StringIO):
                 container = datatypes.DataContainerZip(path,mode='w')
                 claim = False
             else:
@@ -2342,7 +2361,7 @@ class TypedStore(util.referencedobject):
             
             # Add any other objects that were linked to the store by a node
             # of custom type (e.g. DataFileEx)
-            for name,linkedfile in self.context.get('linkedobjects',{}).iteritems():
+            for name,linkedfile in self.context.get('linkedobjects',{}).items():
                 assert isinstance(linkedfile,TypedStore), 'Do not know how to add linked file %s of type %s to container.' % (name,str(type(linkedfile)))
                 df = datatypes.DataFileXmlNode(linkedfile.xmldocument)
                 df_added = container.addItem(df,name)
@@ -2366,7 +2385,7 @@ class TypedStore(util.referencedobject):
             container.persistChanges()
             container.release()
 
-        if isinstance(path,basestring):
+        if isinstance(path, (str, u''.__class__)):
             self.path = path
         else:
             self.path = None
@@ -2500,7 +2519,7 @@ class SchemaInfoCache(object):
 
     def __getitem__(self, path):
         if path not in self.path2info:
-            if isinstance(path, basestring):
+            if isinstance(path, (str, u''.__class__)):
                 self.path2info[path] = SchemaInfo(path)
             else:
                 self.path2info[path] = MultipleSchemaInfo(*path)
@@ -2608,7 +2627,7 @@ class SchemaInfo(object):
 
     def addConverters(self,dirpath):
         assert os.path.isdir(dirpath),'Provided path "%s" must be a directory.' % dirpath
-        #print 'Adding converters from "%s".' % dirpath
+        #print('Adding converters from "%s".' % dirpath)
         for name in os.listdir(dirpath):
             fullpath = os.path.join(dirpath,name)
             if name.endswith('.converter') and os.path.isfile(fullpath):

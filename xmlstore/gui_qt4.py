@@ -492,7 +492,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
         self.suffix = ''
 
     def validate(self,input,pos):
-        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+        assert isinstance(input, (str, u''.__class__)),'input argument is not a string (old PyQt4 API?)'
 
         # Check for suffix (if ok, cut it off for further value checking)
         if not input.endswith(self.suffix): return (QtGui.QValidator.Invalid,input,pos)
@@ -515,7 +515,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
         return (QtGui.QValidator.Acceptable,input,pos)
 
     def fixup(self,input):
-        assert isinstance(input,basestring),'input argument is not a string (old PyQt4 API?)'
+        assert isinstance(input, (str, u''.__class__)),'input argument is not a string (old PyQt4 API?)'
         if not input.endswith(self.suffix): return input
 
         try:
@@ -1918,7 +1918,8 @@ class PropertyEditorFactory(object):
         return [editor.node for editor in self.editors]
         
     def attachExternalEditor(self,editor,node,conditiontype='visibility',conditionvalue=None):
-        if isinstance(node,basestring): node = self.store[node]
+        if isinstance(node, (str, u''.__class__)):
+            node = self.store[node]
         self.externaleditors.append((editor,node,conditiontype,conditionvalue))
         if conditiontype=='visibility':
             newviz = not node.isHidden()
