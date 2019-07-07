@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 
 def importPyQt4():
@@ -24,7 +26,7 @@ if 'QT_API' in os.environ:
             preference.insert(0, preference.pop(i))
             break
     else:
-        print 'Qt backend "%s" set in environment variable "QT_API" not found. Auto-detecting...' % (os.environ['QT_API'],)
+        print('Qt backend "%s" set in environment variable "QT_API" not found. Auto-detecting...' % (os.environ['QT_API'],))
 
 qt4_backend = None
 for name, importFunction in preference:
@@ -38,7 +40,7 @@ else:
     raise Exception('Unable to import PyQt4 or PySide. Please install one of these packages first.')
 
 def importModule(moduleName):
-    qt4 = __import__(qt4_backend, globals(), locals(), [moduleName], -1)
+    qt4 = __import__(qt4_backend, globals(), locals(), [moduleName])
     return getattr(qt4, moduleName)
 
 # Store properties describing backend.

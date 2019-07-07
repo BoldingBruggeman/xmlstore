@@ -1,26 +1,32 @@
+from __future__ import print_function
+
 # Import modules from standard Python (>= 2.4) library
-import datetime, sys, cPickle, StringIO
+import datetime, sys, io
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 # Import third-party modules
-from qt_compat import QtGui,QtCore,QtWidgets
+from .qt_compat import QtGui,QtCore,QtWidgets
 
 # Import our own custom modules
-import xmlstore,util,datatypes
+from . import xmlstore,util,datatypes
 
 def find_global(module,name):
     import sys
     return getattr(sys.modules[module],name)
 
 def dumps(obj):
-    stream = StringIO.StringIO()
-    p = cPickle.Pickler(stream,-1)
+    stream = io.StringIO()
+    p = pickle.Pickler(stream,-1)
     #setattr(p,'find_global',find_global)
     p.dump(obj)
     return stream.getvalue()
 
 def loads(self,string):
-    stream = StringIO.StringIO(string)
-    p = cPickle.Unpickler(stream)
+    stream = io.StringIO(string)
+    p = pickle.Unpickler(stream)
     setattr(p,'find_global',find_global)
     return p.load()
 
@@ -525,7 +531,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
 
         if self.minimum is not None and v<self.minimum: input = u'%s%s' % (self.minimum,self.suffix)
         if self.maximum is not None and v>self.maximum: input = u'%s%s' % (self.maximum,self.suffix)
-        print u'"%s"' % input
+        print(u'"%s"' % input)
         return input
 
     def setSuffix(self,suffix):
@@ -1774,7 +1780,7 @@ class PropertyEditorDialog(QtWidgets.QDialog):
                 self.loadhook(path)
             else:
                 self.store.load(path)
-        except Exception,e:
+        except Exception as e:
             QtWidgets.QMessageBox.critical(self, 'Unable to load settings from file', unicode(e), QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.NoButton)
         self.lastpath = path
     
