@@ -236,7 +236,7 @@ class DataTypeArray(DataType,list):
                 strings = []
                 for value in values:
                     strings.append(self.getSafeValue(value).toNamelistString(context,template))
-                result.append((','.join(map(str,inds)+[':']),','.join(strings)))
+                result.append((','.join(list(map(str,inds))+[':']),','.join(strings)))
             return result
             
         shape = template.getAttribute('shape').split(',')
