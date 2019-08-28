@@ -313,9 +313,9 @@ class DataTypeArray(DataType,list):
                     root[i] = vals
                 else:
                     assign(root[i],inds[1:],vals)
-                
-        assign(self,inds,data)            
-        
+
+        assign(self,inds,data)
+
 class DataTypeSimple(DataType):
     """Data type that can be completely represented by a single string.
     This string will be used to store the value as a single text node in XML.
@@ -334,7 +334,7 @@ class DataTypeSimple(DataType):
     @classmethod
     def fromXmlString(cls,string,context,template=None):
         """Loads the object from an XML string.
-        
+
         By default it assumes the derived class can be initialized from a string
         argument. If this is not the case, fromXmlString should be implemented.
         """
@@ -345,7 +345,7 @@ class DataTypeSimple(DataType):
     @classmethod
     def fromNamelistString(cls,string,context,template=None):
         """Loads the object from an FORTRAN namelist string.
-        
+
         By default it assumes the derived class can be initialized from a string
         argument. If this is not the case, fromNamelistString should be implemented.
         """
@@ -362,7 +362,7 @@ class DataTypeSimple(DataType):
 
     def toXmlString(self,context):
         return unicode(self)
-        
+
     def toNamelistString(self,context,template=None):
         return unicode(self)
 
@@ -385,13 +385,13 @@ class Bool(DataTypeSimple,int):
     """
     def __init__(self,value):
         DataTypeSimple.__init__(self)
-        
+
     @classmethod
     def fromXmlString(cls,string,context,template=None):
         if string not in ('True','False'):
             raise ValueError('Cannot convert XML string "%s" to a Boolean value (Booleans can only be True or False).' % string)
         return Bool(string=='True')
-        
+
     @classmethod
     def fromNamelistString(cls,string,context,template=None):
         string = string.lower()
@@ -400,22 +400,22 @@ class Bool(DataTypeSimple,int):
         elif string.startswith('t') or string.startswith('.t'):
             return Bool(True)
         raise Exception('Cannot convert namelist string "%s" to a Boolean value.' % string)
-        
+
     def toNamelistString(self,context,template=None):
         if self: return '.true.'
         else:    return '.false.'
-        
+
     def toXmlString(self,context):
         if self: return 'True'
         else:    return 'False'
-        
+
     def toPrettyString(self):
         if self: return 'Yes'
         else:    return 'No'
-        
+
 register('bool',Bool)
 
-class String(DataTypeSimple,unicode):
+class String(DataTypeSimple, unicode):
     """String data type.
     """
     def __init__(self,value):
@@ -428,10 +428,10 @@ class String(DataTypeSimple,unicode):
                 raise Exception('Closing quote missing in namelist string %s.' % string)
             return string[1:-1]
         return string
-        
+
     def toNamelistString(self,context,template=None):
         return '\''+unicode(self)+'\''
-        
+
 register('string',String)
 
 class DateTime(DataTypeSimple,datetime.datetime):
@@ -439,7 +439,7 @@ class DateTime(DataTypeSimple,datetime.datetime):
     """
     reDateTime  = re.compile('(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)')
     reDateTime2 = re.compile('(\d{4})[/\-](\d\d)[/\-](\d\d) (\d\d):(\d\d):(\d\d)')
-    
+
     def __new__(cls,*args,**kwargs):
         if len(args)==1 and not kwargs:
             if isinstance(args[0],datetime.datetime):

@@ -37,7 +37,7 @@ class Schema(object):
     """
     cache = {}
     knownpaths = {}
-    
+
     @staticmethod
     def create(source,cache=True):
         """Creates a schema from file or DOM tree object. If a file path is
@@ -55,14 +55,14 @@ class Schema(object):
         else:
             schema = Schema(source)
         return schema
-    
+
     def __init__(self,source,sourceisxml=False):
         """Initializes a new Schema from the specified source.
         A source can be a path to an XML file, a string containing XML or a xml.dom.minidom DOM object
         If it is a a string containing XML, argument "sourceisxml" must be set to True;
         otherwise the source is interpreted as a path to an XML file.
         """
-        
+
         # The template can be specified as a DOM object, or as string (i.e. path to XML file)
         path = ''
         if isinstance(source, (str, u''.__class__)):
@@ -81,7 +81,7 @@ class Schema(object):
             self.dom = source
         else:
             assert False, 'First argument (the schema source) must either be a string or an XML DOM tree. Received argument: %s.' % str(source)
-            
+
         # In addition to "element" nodes, a Schema can contains "link" nodes that either reference an
         # "template" node within the same schema, or a the root node of another XML file.
         # Below all link nodes are replaced by the their target.
@@ -490,7 +490,7 @@ class TypedStoreInterface(object):
             templatenode = node.templatenode
             td1.appendChild(xmldocument.createTextNode(node.getText(detail=1)))
             if level+1<totaldepth:
-                td1.setAttribute('colspan',unicode(totaldepth-level))
+                td1.setAttribute('colspan', repr(totaldepth-level))
             tr.appendChild(td1)
 
             td2 = xmldocument.createElement('td')
@@ -1458,7 +1458,7 @@ class TypedStore(util.referencedobject):
             try:
                 valuedom = xml.dom.minidom.parse(f)
             except Exception as e:
-                raise Exception('Unable to parse as XML: '+unicode(e))
+                raise Exception('Unable to parse as XML: %s' % (e,))
             f.close()
         else:
             # XML file is provided as a path.
@@ -1467,7 +1467,7 @@ class TypedStore(util.referencedobject):
             try:
                 valuedom = xml.dom.minidom.parse(path)
             except Exception as e:
-                raise Exception('"%s" does not contain valid XML: %s' % (path,unicode(e)))
+                raise Exception('"%s" does not contain valid XML: %s' % (path, e))
             container = datatypes.DataContainerDirectory(os.path.dirname(os.path.abspath(path)))
             
         # Get version of the XML file.
@@ -2103,7 +2103,7 @@ class TypedStore(util.referencedobject):
             def cleanup():
                 for value in namespace.values():
                     if isinstance(value,util.referencedobject): value.release()
-        
+
             def validate(namespace,affectednodes):
                 try:
                     for ch in testnode.childNodes:
@@ -2124,7 +2124,7 @@ class TypedStore(util.referencedobject):
                     # Flag all affected nodes as invalid and register the error message.
                     for node in affectednodes:
                         if node in validity: validity[node] = False
-                    errors.append(unicode(e))
+                    errors.append('%s' % e)
 
             # Get values for all variables that this rule uses.
             namespace = {'ValidationException':ValidationException}
