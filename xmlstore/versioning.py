@@ -59,7 +59,7 @@ class Convertor(object):
         classes)."""
         if matchednodes is None: matchednodes = {}
 
-        import xmlstore
+        from . import xmlstore
         if isinstance(source,xmlstore.TypedStore): source = source.root
         if isinstance(target,xmlstore.TypedStore): target = target.root
         

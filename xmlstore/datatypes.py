@@ -818,13 +818,13 @@ class DataFile(DataType,util.referencedobject):
         object.
         
         The default implementation reads all data into memory
-        (using DataFile.getData), then returns a StringIO object that
+        (using DataFile.getData), then returns a StringIO or BytesIO object that
         encapsulates the data block in memory.
         
         Deriving classes MUST implement getAsReadOnlyFile and/or getData!
         """
         data = self.getData(textmode=textmode,readonly=True)
-        return io.StringIO(data)
+        return (io.StringIO if textmode else io.BytesIO)(data)
 
     def getData(self,textmode=True,readonly=False):
         """Returns the contents of the data file as a string of bytes.
@@ -876,7 +876,7 @@ class DataFile(DataType,util.referencedobject):
         tarinfo = tarfile.TarInfo(filename)
         tarinfo.size = len(data)
         tarinfo.mtime = time.time()
-        tfile.addfile(tarinfo,io.StringIO(data))
+        tfile.addfile(tarinfo,io.BytesIO(data))
 
     def isBelowPath(self,path):
         """Returns True if the data file is located somewhere below the specified
@@ -1218,7 +1218,10 @@ class DataContainerZip(DataContainer):
             """
             assert self.zipcontainer is not None, 'DataFileZip.getData failed; ZIP file has been closed.'
             self.zipcontainer.setMode('r')
-            return self.zipcontainer.zfile.read(self.name)
+            data = self.zipcontainer.zfile.read(self.name)
+            if textmode:
+                data = data.decode('utf-8')
+            return data
 
         def isBelowPath(self,path):
             """Returns True if the data file is located somewhere below the specified
@@ -1247,8 +1250,8 @@ class DataContainerZip(DataContainer):
         DataContainer.__init__(self)
         if isinstance(source, (str, u''.__class__)):
             assert os.path.isfile(source) or mode=='w', 'Cannot initialize DataContainerZip with supplied path; it does not point to an existing file, but is also not opened for writing.'
-        elif isinstance(source,io.StringIO):
-            assert mode=='w', 'Can initialize DataContainerZip with StringIO object only in write-only mode.'
+        elif isinstance(source,io.BytesIO):
+            assert mode=='w', 'Can initialize DataContainerZip with BytesIO object only in write-only mode.'
         elif isinstance(source,DataFile):
             assert mode=='r', 'Can initialize DataContainerZip with file-like object only in read-only mode.'
         else:
@@ -1328,14 +1331,14 @@ class DataContainerZip(DataContainer):
             if mode==self.mode: return
             self.zfile.close()
         self.mode = mode
-        if isinstance(self.source,io.StringIO):
+        if isinstance(self.source,io.BytesIO):
             # Writing to in-memory data block.
             assert self.mode=='w', 'In-memory data blocks can only be written to, not read from.'
             self.zfile = zipfile.ZipFile(self.source,self.mode,zipfile.ZIP_DEFLATED)
         if isinstance(self.source,DataFile):
             # Reading from generic DataFile object.
             assert self.mode=='r', 'Data file objects can only be accessed as read-only zip file.'
-            f = self.source.getAsReadOnlyFile()
+            f = self.source.getAsReadOnlyFile(textmode=False)
             self.zfile = zipfile.ZipFile(f,self.mode,zipfile.ZIP_DEFLATED)
         else:
             # Reading from/writing to file.
@@ -1364,7 +1367,10 @@ class DataContainerTar(DataContainer):
             """
             assert self.tarcontainer is not None, 'DataFileTar.getAsReadOnlyFile failed; TAR file has been closed.'
             self.tarcontainer.setMode('r')
-            return self.tarcontainer.tfile.extractfile(self.name)
+            stream = self.tarcontainer.tfile.extractfile(self.name)
+            if textmode:
+                stream = io.TextIOWrapper(stream, encoding='utf-8')
+            return stream
 
         def isBelowPath(self,path):
             """Returns True if the data file is located somewhere below the specified
@@ -1468,7 +1474,7 @@ class DataFileXmlNode(DataFile):
     def getData(self,textmode=True,readonly=False):
         """Returns the contents of the XML node as a string of bytes (XML).
         """
-        return self.xmlnode.toxml('utf-8')
+        return self.xmlnode.toxml(None if textmode else 'utf-8')
 
     def saveToFile(self,targetpath):
         """Saves the contents of the XML node to a file at the specified path.
@@ -1504,13 +1510,13 @@ class DataFileMemory(DataFile):
         """Creates a DataFileMemory object from another data file.
         (this means the contents of the other file is read completely into memory)
         """
-        return DataFileMemory(df.getData(),df.name)
+        return DataFileMemory(df.getData(textmode=False), df.name)
 
     def getAsReadOnlyFile(self,textmode=True):
         """Returns the data stored in the data file as a read-only, file-like
         object.
         """
-        return io.StringIO(self.data)
+        return io.StringIO(self.data.decode('utf-8')) if textmode else io.BytesIO(self.data)
 
     def getData(self,textmode=True,readonly=False):
         """Returns the contents of the object as a string of bytes.

@@ -1405,7 +1405,7 @@ class TypedStore(util.referencedobject):
         else:
             # No default values present for the requested version.
             # Use the first values available - we will attempt conversion to the desired version.
-            path = version2path.values()[0]
+            path = list(version2path.values())[0]
 
         # Load the selected defaults from file.
         sourcestore = cls.fromXmlFile(path,adddefault=False)
@@ -2348,11 +2348,11 @@ class TypedStore(util.referencedobject):
                     container = datatypes.DataContainerDirectory(path,create=True)
                 else:
                     container = datatypes.DataContainerZip(path,mode='w')
-            elif isinstance(path,io.StringIO):
+            elif isinstance(path, io.BytesIO):
                 container = datatypes.DataContainerZip(path,mode='w')
                 claim = False
             else:
-                assert False,'Supplied target must be a path to file or directory, or a StringIO object.'
+                assert False,'Supplied target must be a path to file or directory, or a BytesIO object.'
 
             # Allow all nodes to add custom data to the target container. This can change the values
             # in the XML store, and must therefore be done before the store is added to the container.

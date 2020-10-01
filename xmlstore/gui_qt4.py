@@ -19,14 +19,14 @@ def find_global(module,name):
     return getattr(sys.modules[module],name)
 
 def dumps(obj):
-    stream = io.StringIO()
+    stream = io.BytesIO()
     p = pickle.Pickler(stream,-1)
     #setattr(p,'find_global',find_global)
     p.dump(obj)
     return stream.getvalue()
 
 def loads(self,string):
-    stream = io.StringIO(string)
+    stream = io.BytesIO(string)
     p = pickle.Unpickler(stream)
     setattr(p,'find_global',find_global)
     return p.load()
