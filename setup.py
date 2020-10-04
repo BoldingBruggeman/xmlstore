@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='xmlstore',
-      version='0.9.8',
+      version='0.9.9',
       description=' --- update - ',
       long_description=readme(),
       url='http://github.com/BoldingBruggeman/xmlstore',

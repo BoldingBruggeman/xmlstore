@@ -456,7 +456,7 @@ class DateTime(DataTypeSimple,datetime.datetime):
 
     def __init__(self,*args,**kwargs):
         DataTypeSimple.__init__(self)
-        
+
     @classmethod
     def fromNamelistString(cls,string,context,template=None):
         string = String.fromNamelistString(string,context,template)
@@ -464,17 +464,17 @@ class DateTime(DataTypeSimple,datetime.datetime):
         if datetimematch is None:
             raise Exception('Cannot convert namelist string "%s" to a datetime object.' % string)
         refvals = map(int,datetimematch.group(1,2,3,4,5,6)) # Convert matched strings into integers
-        return util.dateTimeFromTuple(refvals)
-        
+        return util.dateTimeFromTuple(tuple(refvals))
+
     def toXmlString(self,context):
         return util.formatDateTime(self,iso=True)
-        
+
     def toNamelistString(self,context,template=None):
         return String(util.formatDateTime(self,iso=True)).toNamelistString(context,template)
 
     def toPrettyString(self):
         return util.formatDateTime(self)
-        
+
 register('datetime',DateTime)
 
 class TimeDelta(DataTypeSimple,datetime.timedelta):

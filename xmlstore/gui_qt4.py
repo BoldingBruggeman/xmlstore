@@ -532,7 +532,6 @@ class ScientificDoubleValidator(QtGui.QValidator):
 
         if self.minimum is not None and v<self.minimum: input = u'%s%s' % (self.minimum,self.suffix)
         if self.maximum is not None and v>self.maximum: input = u'%s%s' % (self.maximum,self.suffix)
-        print(u'"%s"' % input)
         return input
 
     def setSuffix(self,suffix):
