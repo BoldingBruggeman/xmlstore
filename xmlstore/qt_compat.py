@@ -34,6 +34,8 @@ for name, importFunction in preference:
         QtCore = importFunction()
     except ImportError:
         continue
+    except AttributeError:
+        continue
     qt4_backend = name
     break
 else:
