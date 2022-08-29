@@ -13,7 +13,7 @@ from __future__ import print_function
 import re, xml.dom.minidom, os, io, codecs
 
 try:
-    from collections import Mapping as DictMixin
+    from collections.abc import Mapping as DictMixin
 except ImportError:
     from UserDict import DictMixin
 
