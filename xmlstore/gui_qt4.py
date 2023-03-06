@@ -1768,7 +1768,7 @@ class PropertyEditorDialog(QtWidgets.QDialog):
         """
         self.tree.header().resizeSections(QtWidgets.QHeaderView.Stretch)
         self.tree.resizeColumnToContents(0)
-        maxwidth = .65*self.width()
+        maxwidth = int(0.65 * self.width())
         if self.tree.columnWidth(0)>maxwidth: self.tree.setColumnWidth(0,maxwidth)
 
     def onLoad(self):
