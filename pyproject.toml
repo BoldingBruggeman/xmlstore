@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xmlstore"
+version = "0.9.13"
+authors = [
+  {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"}
+]
+description = "Python package for storing typed data in xml"
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Development Status :: 5 - Production/Stable"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/BoldingBruggeman/xmlstore"
