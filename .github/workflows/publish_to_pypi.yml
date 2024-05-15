@@ -9,6 +9,8 @@ jobs:
     steps:
     - name: Clone repository
       uses: actions/checkout@v4
+      with:
+        fetch-tags: true  # for version detection by hatch-vcs/setuptools_scm
     - name: Set up Python
       uses: actions/setup-python@v5
     - name: Install build
@@ -16,7 +18,7 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: python -m build
     - name: Store the distribution packages
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -31,7 +33,7 @@ jobs:
       id-token: write
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/      
