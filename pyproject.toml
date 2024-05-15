@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "xmlstore"
 version = "0.9.13"
+readme = "README.md"
 authors = [
   {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"}
 ]
