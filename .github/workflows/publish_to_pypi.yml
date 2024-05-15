@@ -10,7 +10,7 @@ jobs:
     - name: Clone repository
       uses: actions/checkout@v4
       with:
-        fetch-tags: true  # for version detection by hatch-vcs/setuptools_scm
+        fetch-depth: 0  # for version detection by hatch-vcs/setuptools_scm
     - name: Set up Python
       uses: actions/setup-python@v5
     - name: Install build
