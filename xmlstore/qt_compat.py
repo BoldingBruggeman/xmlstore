@@ -1,6 +1,5 @@
-from __future__ import print_function
-
 import os
+import importlib
 
 def importPyQt4():
     import sip
@@ -17,7 +16,11 @@ def importPySide():
     import PySide.QtCore as _QtCore
     return _QtCore
 
-preference = ('PyQt4', importPyQt4), ('PySide', importPySide), ('PyQt5', importPyQt5)
+def importPySide6():
+    import PySide6.QtCore as _QtCore
+    return _QtCore
+
+preference = ('PyQt4', importPyQt4), ('PySide', importPySide), ('PyQt5', importPyQt5), ('PySide6', importPySide6)
 
 if 'QT_API' in os.environ:
     preference = list(preference)
@@ -42,8 +45,7 @@ else:
     raise Exception('Unable to import PyQt4 or PySide. Please install one of these packages first.')
 
 def importModule(moduleName):
-    qt4 = __import__(qt4_backend, globals(), locals(), [moduleName])
-    return getattr(qt4, moduleName)
+    return importlib.import_module(qt4_backend + "." + moduleName)
 
 # Store properties describing backend.
 # Create additional methods in QtCore module where needed.
@@ -51,6 +53,10 @@ if qt4_backend == 'PySide':
     import PySide
     mpl_qt4_backend = 'PySide'
     qt4_backend_version = PySide.__version__
+elif qt4_backend == 'PySide6':
+    import PySide6
+    mpl_qt4_backend = 'PySide6'
+    qt4_backend_version = PySide6.__version__
 else:
     mpl_qt4_backend = qt4_backend
     qt4_backend_version = QtCore.PYQT_VERSION_STR
@@ -61,13 +67,17 @@ else:
 
 # Import QtGui module and create additional methods where needed.
 QtGui = importModule('QtGui')
-if qt4_backend == 'PyQt5':
+if qt4_backend == 'PyQt5' or  qt4_backend == 'PySide6':
     QtWidgets = importModule('QtWidgets')
     QtPrintSupport = importModule('QtPrintSupport')
 else:
     QtWidgets = QtGui
     QtPrintSupport = QtGui
-if qt4_backend in ('PySide', 'PyQt5'):
+if qt4_backend in ('PySide', 'PyQt5', 'PySide6'):
     QtWidgets.QFileDialog.getOpenFileNamesAndFilter = QtWidgets.QFileDialog.getOpenFileNames
     QtWidgets.QFileDialog.getOpenFileNameAndFilter = QtWidgets.QFileDialog.getOpenFileName
     QtWidgets.QFileDialog.getSaveFileNameAndFilter = QtWidgets.QFileDialog.getSaveFileName
+
+if not hasattr(QtWidgets, "QAction"):
+    # Qt6 moved QAction from QtWidgets to QtGui
+    QtWidgets.QAction = QtGui.QAction

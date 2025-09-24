@@ -2,6 +2,7 @@ from __future__ import print_function
 
 # Import modules from standard Python (>= 2.4) library
 import datetime, sys, io
+import re
 try:
     import cPickle as pickle
 except ImportError:
@@ -148,7 +149,7 @@ class AbstractPropertyEditor(object):
 
     @staticmethod
     def displayValue(delegate,painter,option,index):
-        QtWidgets.QItemDelegate.paint(delegate,painter,option,index)
+        QtWidgets.QStyledItemDelegate.paint(delegate,painter,option,index)
         
 # =======================================================================
 # Functions for converting between Qt date/time object and Python
@@ -506,8 +507,8 @@ class ScientificDoubleValidator(QtGui.QValidator):
         vallength = len(input)-len(self.suffix)
 
         # Check for invalid characters
-        rx = QtCore.QRegExp('[^\d\-+eE,.]')
-        if rx.indexIn(input[:vallength])!=-1: return (QtGui.QValidator.Invalid,input,pos)
+        if re.match(r"[^\d\-+eE,.]", input[:vallength]):
+            return (QtGui.QValidator.State.Invalid, input, pos)
 
         # Check if we can convert it into a floating point value
         try:
@@ -698,21 +699,26 @@ class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     @staticmethod
     def displayValue(delegate,painter,option,index):
         value = index.data(QtCore.Qt.EditRole)
-        if not value.isValid(): return QtWidgets.QItemDelegate.paint(delegate,painter,option,index)
+        if not value.isValid(): return QtWidgets.QStyledItemDelegate.paint(delegate,painter,option,index)
         value = QtGui.QColor(value)
 
+        style = QtWidgets.QApplication.style() if option.widget is None else option.widget.style()
+
+        # Draw background, respecting whether item is selected or not
+        style.drawControl(QtWidgets.QStyle.CE_ItemViewItem, option, painter, option.widget)
+
         # Get the rectangle to fill
-        style = QtWidgets.qApp.style()
         xOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
         yOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameVMargin,option)
         rect = option.rect.adjusted(xOffset,yOffset,-xOffset,-yOffset)
         rect.setWidth(rect.height())
 
         qPixMap = ColorEditor.createPixmap(value,rect.width(),rect.height())
-        option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
-        delegate.drawBackground(painter,option,index)
-        delegate.drawDecoration(painter,option,rect,qPixMap)
-        delegate.drawFocus(painter,option,option.rect)
+        painter.drawPixmap(rect, qPixMap)
+        # option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
+        # delegate.drawBackground(painter,option,index)
+        # delegate.drawDecoration(painter,option,rect,qPixMap)
+        # delegate.drawFocus(painter,option,option.rect)
 
     color2name = None
     @staticmethod
@@ -756,9 +762,9 @@ class PrivateWindowEditor(AbstractPropertyEditor,QtWidgets.QWidget):
 class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     """Widget for selecting an image, represented internally by a string.
     """
-    class Delegate(QtWidgets.QItemDelegate):
+    class Delegate(QtWidgets.QStyledItemDelegate):
         def __init__(self,parent):
-            QtWidgets.QItemDelegate.__init__(self,parent)
+            QtWidgets.QStyledItemDelegate.__init__(self,parent)
             self.owner = parent
 
         def paint(self,painter,option,index):
@@ -833,20 +839,29 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
     @classmethod
     def displayValue(cls,delegate,painter,option,index):
         value = cls.convertFromQVariant(index.data(QtCore.Qt.EditRole))
+
+        style = QtWidgets.QApplication.style() if option.widget is None else option.widget.style()
+
+        # Draw background, respecting whether item is selected or not
+        style.drawControl(QtWidgets.QStyle.CE_ItemViewItem, option, painter, option.widget)
+
         rect = option.rect
         dpi = painter.device().logicalDpiX()
         #dpi = option.widget.logicalDpiX()
         qPixMap = cls.getPixMap(value,cls.width,cls.height,dpi)
         if qPixMap:
             option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
-            delegate.drawBackground(painter,option,index)
-            xOffset = QtWidgets.qApp.style().pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
-            delegate.drawDecoration(painter,option,rect.adjusted(xOffset,0,0,0),qPixMap)
+            #delegate.drawBackground(painter,option,index)
+            xOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
+            yOffset = 0.5 * (rect.height() - qPixMap.height())
+            painter.drawPixmap(rect.adjusted(xOffset,yOffset,0,0).topLeft(), qPixMap)
+            #delegate.drawDecoration(painter,option,rect.adjusted(xOffset,0,0,0),qPixMap)
             rect = rect.adjusted(xOffset*2+qPixMap.width(),0,0,0)
         label = cls.getLabel(value)
         if label:
-            delegate.drawDisplay(painter,option,rect,label)
-        delegate.drawFocus(painter,option,option.rect)
+            painter.drawText(rect,option.displayAlignment,label)
+            #delegate.drawDisplay(painter,option,rect,label)
+        #delegate.drawFocus(painter,option,option.rect)
 
     @staticmethod
     def convertFromQVariant(value):
@@ -861,7 +876,7 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
 # values.
 # =======================================================================
 
-class PropertyDelegate(QtWidgets.QItemDelegate):
+class PropertyDelegate(QtWidgets.QStyledItemDelegate):
     """a Qt delegate used to create editors for property values.
     Built to handle properties from our custom TypedStore,
     which stores typed properties in hierarchical structure (XML)
@@ -875,7 +890,7 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
 
     def createEditor(self, parent, option, index):
         """Creates the editor widget for the model item at the given index.
-        Inherited from QtWidgets.QItemDelegate.
+        Inherited from QtWidgets.QStyledItemDelegate.
         """
         node = index.internalPointer()
 
@@ -900,7 +915,7 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
 
     def paint(self,painter,option,index):
         """Paints the current value for display (not editing!)
-        Inherited from QtWidgets.QItemDelegate.
+        Inherited from QtWidgets.QStyledItemDelegate.
         """
         node = index.internalPointer()
         if index.column()==1 and node.canHaveValue():
@@ -909,11 +924,11 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
             if editorclass is None: editorclass = AbstractPropertyEditor
             editorclass.displayValue(self,painter,option,index)
         else:
-            QtWidgets.QItemDelegate.paint(self,painter,option,index)
+            QtWidgets.QStyledItemDelegate.paint(self,painter,option,index)
 
     def setEditorData(self, editor,index):
         """Sets value in the editor widget, for the model item at the given index.
-        Inherited from QtWidgets.QItemDelegate.
+        Inherited from QtWidgets.QStyledItemDelegate.
         """
         node = index.internalPointer()
         value = node.getValue(usedefault=True)
@@ -923,7 +938,7 @@ class PropertyDelegate(QtWidgets.QItemDelegate):
     def setModelData(self, editor, model, index):
         """Obtains the value from the editor widget, and set it for the model item
         at the given index.
-        Inherited from QtWidgets.QItemDelegate.
+        Inherited from QtWidgets.QStyledItemDelegate.
         """
         node = index.internalPointer()
         value = editor.value()
@@ -1315,7 +1330,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
                 if templatenode.hasAttribute('minInclusive'): text += '\nminimum value: '+templatenode.getAttribute('minInclusive')
                 if templatenode.hasAttribute('maxInclusive'): text += '\nmaximum value: '+templatenode.getAttribute('maxInclusive')
             return text
-        elif role==QtCore.Qt.TextColorRole:
+        elif role==QtCore.Qt.ForegroundRole:
             if self.nohide and not node.visible:
                 # If we should show hidden nodes too, color them blue to differentiate.
                 return QtGui.QColor(0,0,255)
@@ -1651,15 +1666,15 @@ class ExtendedTreeView(QtWidgets.QTreeView):
         parent node is automatically expanded.
         """
         QtWidgets.QTreeView.rowsInserted(self,parent,start,end)
-                
+        model = self.model()
+
         # If needed, expand all child rows that were set to a non-default value.
         if self.autoexpandnondefaults:
             for i in range(start,end+1):
-                self.expandNonDefaults(parent.child(i,0))
-                
+                self.expandNonDefaults(model.index(i,0,parent))
+
         # Auto-expand if the newly inserted rows were the very first children of the parent.
         # This will make sure that insertion of rows will not go unnoticed.
-        model = self.model()
         if model.rowCount(parent)==end-start+1:
             self.expand(parent)
 
@@ -1796,7 +1811,7 @@ class PropertyEditorDialog(QtWidgets.QDialog):
 
 class PropertyEditorFactory(object):
     """Class that provides editors for nodes in a TypedStore. Multiple editors
-    can be active at once (cf. QItemDelegate). If nodes in the TypedStore are
+    can be active at once (cf. QStyledItemDelegate). If nodes in the TypedStore are
     hidden, any associated editors are disabled or hidden as well.
     """
 
