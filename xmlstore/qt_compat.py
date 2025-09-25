@@ -1,30 +1,18 @@
 import os
 import importlib
 
-def importPyQt4():
-    import sip
-    sip.setapi('QString',  2)
-    sip.setapi('QVariant', 2)
-    import PyQt4.QtCore as _QtCore
-    return _QtCore
+def import_qt(backend):
+    if backend == 'PyQt4':
+        import sip
+        sip.setapi('QString',  2)
+        sip.setapi('QVariant', 2)
+    return importlib.import_module(backend + ".QtCore")
 
-def importPyQt5():
-    import PyQt5.QtCore as _QtCore
-    return _QtCore
-
-def importPySide():
-    import PySide.QtCore as _QtCore
-    return _QtCore
-
-def importPySide6():
-    import PySide6.QtCore as _QtCore
-    return _QtCore
-
-preference = ('PyQt4', importPyQt4), ('PySide', importPySide), ('PyQt5', importPyQt5), ('PySide6', importPySide6)
+preference = ('PySide6', 'PyQt6', 'PyQt5', 'PySide2') 
 
 if 'QT_API' in os.environ:
     preference = list(preference)
-    for i, (name, fn) in enumerate(preference):
+    for i, name in enumerate(preference):
         if name.lower() == os.environ['QT_API'].lower():
             preference.insert(0, preference.pop(i))
             break
@@ -32,9 +20,9 @@ if 'QT_API' in os.environ:
         print('Qt backend "%s" set in environment variable "QT_API" not found. Auto-detecting...' % (os.environ['QT_API'],))
 
 qt4_backend = None
-for name, importFunction in preference:
+for name in preference:
     try:
-        QtCore = importFunction()
+        QtCore = import_qt(name)
     except ImportError:
         continue
     except AttributeError:
@@ -42,21 +30,17 @@ for name, importFunction in preference:
     qt4_backend = name
     break
 else:
-    raise Exception('Unable to import PyQt4 or PySide. Please install one of these packages first.')
+    raise Exception('Unable to import any of: %s. Please install one of these packages first.' % (", ".join(preference),))
 
 def importModule(moduleName):
     return importlib.import_module(qt4_backend + "." + moduleName)
 
 # Store properties describing backend.
 # Create additional methods in QtCore module where needed.
-if qt4_backend == 'PySide':
-    import PySide
-    mpl_qt4_backend = 'PySide'
-    qt4_backend_version = PySide.__version__
-elif qt4_backend == 'PySide6':
-    import PySide6
-    mpl_qt4_backend = 'PySide6'
-    qt4_backend_version = PySide6.__version__
+if qt4_backend.startswith('PySide'):
+    root_mod = importlib.import_module(qt4_backend)
+    qt4_backend_version = root_mod.__version__
+    mpl_qt4_backend = qt4_backend
 else:
     mpl_qt4_backend = qt4_backend
     qt4_backend_version = QtCore.PYQT_VERSION_STR
@@ -67,17 +51,17 @@ else:
 
 # Import QtGui module and create additional methods where needed.
 QtGui = importModule('QtGui')
-if qt4_backend == 'PyQt5' or  qt4_backend == 'PySide6':
-    QtWidgets = importModule('QtWidgets')
-    QtPrintSupport = importModule('QtPrintSupport')
-else:
-    QtWidgets = QtGui
-    QtPrintSupport = QtGui
-if qt4_backend in ('PySide', 'PyQt5', 'PySide6'):
-    QtWidgets.QFileDialog.getOpenFileNamesAndFilter = QtWidgets.QFileDialog.getOpenFileNames
-    QtWidgets.QFileDialog.getOpenFileNameAndFilter = QtWidgets.QFileDialog.getOpenFileName
-    QtWidgets.QFileDialog.getSaveFileNameAndFilter = QtWidgets.QFileDialog.getSaveFileName
+QtWidgets = importModule('QtWidgets')
+QtPrintSupport = importModule('QtPrintSupport')
 
 if not hasattr(QtWidgets, "QAction"):
     # Qt6 moved QAction from QtWidgets to QtGui
     QtWidgets.QAction = QtGui.QAction
+
+# PySide2 only has exec_, not exec
+if not hasattr(QtWidgets.QApplication, "exec"):
+    QtWidgets.QApplication.exec = lambda self, *args, **kwargs: self.exec_(*args, **kwargs)
+if not hasattr(QtWidgets.QMenu, "exec"):
+    QtWidgets.QMenu.exec = lambda self, *args, **kwargs: self.exec_(*args, **kwargs)
+if not hasattr(QtWidgets.QDialog, "exec"):
+    QtWidgets.QDialog.exec = lambda self, *args, **kwargs: self.exec_(*args, **kwargs)

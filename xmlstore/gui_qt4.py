@@ -168,7 +168,7 @@ def datetime2qtdatetime(dt):
     """Convert Python datetime object to Qt QDateTime object.
     """
     tm = dt.utctimetuple()
-    return QtCore.QDateTime(QtCore.QDate(tm.tm_year,tm.tm_mon,tm.tm_mday),QtCore.QTime(tm.tm_hour,tm.tm_min,tm.tm_sec),QtCore.Qt.UTC)
+    return QtCore.QDateTime(QtCore.QDate(tm.tm_year,tm.tm_mon,tm.tm_mday),QtCore.QTime(tm.tm_hour,tm.tm_min,tm.tm_sec),QtCore.Qt.TimeSpec.UTC)
 
 # =======================================================================
 # Editors for built-in data types
@@ -395,7 +395,7 @@ class DateTimeEditor(AbstractPropertyEditor,QtWidgets.QDateTimeEdit):
 
     def value(self):
         value = self.dateTime()
-        value.setTimeSpec(QtCore.Qt.UTC)
+        value.setTimeSpec(QtCore.Qt.TimeSpec.UTC)
         return qtdatetime2datetime(value)
 
     def setValue(self,value):
@@ -698,24 +698,24 @@ class ColorEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
 
     @staticmethod
     def displayValue(delegate,painter,option,index):
-        value = index.data(QtCore.Qt.EditRole)
+        value = index.data(QtCore.Qt.ItemDataRole.EditRole)
         if not value.isValid(): return QtWidgets.QStyledItemDelegate.paint(delegate,painter,option,index)
         value = QtGui.QColor(value)
 
         style = QtWidgets.QApplication.style() if option.widget is None else option.widget.style()
 
         # Draw background, respecting whether item is selected or not
-        style.drawControl(QtWidgets.QStyle.CE_ItemViewItem, option, painter, option.widget)
+        style.drawControl(QtWidgets.QStyle.ControlElement.CE_ItemViewItem, option, painter, option.widget)
 
         # Get the rectangle to fill
-        xOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
-        yOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameVMargin,option)
+        xOffset = style.pixelMetric(QtWidgets.QStyle.PixelMetric.PM_FocusFrameHMargin,option)
+        yOffset = style.pixelMetric(QtWidgets.QStyle.PixelMetric.PM_FocusFrameVMargin,option)
         rect = option.rect.adjusted(xOffset,yOffset,-xOffset,-yOffset)
         rect.setWidth(rect.height())
 
         qPixMap = ColorEditor.createPixmap(value,rect.width(),rect.height())
         painter.drawPixmap(rect, qPixMap)
-        # option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
+        # option.decorationAlignment = QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignVCenter
         # delegate.drawBackground(painter,option,index)
         # delegate.drawDecoration(painter,option,rect,qPixMap)
         # delegate.drawFocus(painter,option,option.rect)
@@ -748,14 +748,14 @@ class PrivateWindowEditor(AbstractPropertyEditor,QtWidgets.QWidget):
         return self.editor.value()
 
     def showEvent(self,ev):
-        dialog = QtWidgets.QDialog(self,QtCore.Qt.Tool)
+        dialog = QtWidgets.QDialog(self,QtCore.Qt.WindowType.Tool)
         dialog.setWindowTitle(self.node.getText(detail=1))
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0,0,0,0)
         layout.addWidget(self.editor)
         dialog.setLayout(layout)
 
-        ret = dialog.exec_()
+        ret = dialog.exec()
         self.onPropertyEditingFinished(forceclose=True)
         dialog.destroy()
 
@@ -772,9 +772,9 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
 
         def sizeHint(self,option,index):
             h = max(option.fontMetrics.height(),self.owner.height)
-            w = self.owner.width+2*QtWidgets.QStyle.PM_FocusFrameHMargin
-            #if label: w += option.fontMetrics.width(label)+2*QtWidgets.QStyle.PM_FocusFrameHMargin
-            return QtCore.QSize(w,h)
+            w = self.owner.width+2*QtWidgets.QStyle.PixelMetric.PM_FocusFrameHMargin
+            #if label: w += option.fontMetrics.width(label)+2*QtWidgets.QStyle.PixelMetric.PM_FocusFrameHMargin
+            return QtCore.QSize(int(round(w)),int(round(h)))
 
     class Model(QtCore.QAbstractListModel):
         def __init__(self,parent):
@@ -788,13 +788,13 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
         def data(self,index,role):
             irow = index.row()
             name = self.owner.items[irow]
-            if role==QtCore.Qt.DecorationRole:
+            if role==QtCore.Qt.ItemDataRole.DecorationRole:
                 pixmap = self.owner.getPixMap(name,self.owner.width,self.owner.height,self.owner.logicalDpiX())
                 if pixmap: return pixmap
-            elif role==QtCore.Qt.DisplayRole:
+            elif role==QtCore.Qt.ItemDataRole.DisplayRole:
                 label = self.owner.getLabel(name)
                 if label: return label
-            elif role==QtCore.Qt.EditRole:
+            elif role==QtCore.Qt.ItemDataRole.EditRole:
                 return name
             return None
 
@@ -811,7 +811,7 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
         self.setModel(self.model)
 
         self.currentIndexChanged.connect(self.onPropertyEditingFinished)
-        self.setIconSize(QtCore.QSize(self.width,self.height))
+        self.setIconSize(QtCore.QSize(int(round(self.width)), int(round(self.height))))
         #self.view().setUniformItemSizes(True)  # Commented out because returned QAbstractItemView does not have setUniformItemSizes
 
     def value(self):
@@ -838,22 +838,22 @@ class StringWithImageEditor(AbstractPropertyEditor,QtWidgets.QComboBox):
 
     @classmethod
     def displayValue(cls,delegate,painter,option,index):
-        value = cls.convertFromQVariant(index.data(QtCore.Qt.EditRole))
+        value = cls.convertFromQVariant(index.data(QtCore.Qt.ItemDataRole.EditRole))
 
         style = QtWidgets.QApplication.style() if option.widget is None else option.widget.style()
 
         # Draw background, respecting whether item is selected or not
-        style.drawControl(QtWidgets.QStyle.CE_ItemViewItem, option, painter, option.widget)
+        style.drawControl(QtWidgets.QStyle.ControlElement.CE_ItemViewItem, option, painter, option.widget)
 
         rect = option.rect
         dpi = painter.device().logicalDpiX()
         #dpi = option.widget.logicalDpiX()
         qPixMap = cls.getPixMap(value,cls.width,cls.height,dpi)
         if qPixMap:
-            option.decorationAlignment = QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter
+            option.decorationAlignment = QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignVCenter
             #delegate.drawBackground(painter,option,index)
-            xOffset = style.pixelMetric(QtWidgets.QStyle.PM_FocusFrameHMargin,option)
-            yOffset = 0.5 * (rect.height() - qPixMap.height())
+            xOffset = style.pixelMetric(QtWidgets.QStyle.PixelMetric.PM_FocusFrameHMargin,option)
+            yOffset = int(round(0.5 * (rect.height() - qPixMap.height())))
             painter.drawPixmap(rect.adjusted(xOffset,yOffset,0,0).topLeft(), qPixMap)
             #delegate.drawDecoration(painter,option,rect.adjusted(xOffset,0,0,0),qPixMap)
             rect = rect.adjusted(xOffset*2+qPixMap.width(),0,0,0)
@@ -967,7 +967,7 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
         """
         
         def setEditorData(self, editor,index):
-            value = index.data(QtCore.Qt.EditRole)
+            value = index.data(QtCore.Qt.ItemDataRole.EditRole)
             if value.isValid():
                 value = self.properties['editorclass'].convertFromQVariant(value)
             else:
@@ -1081,10 +1081,10 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
             
         def headerData(self,section,orientation,role):
             # Only process display role.
-            if role!=QtCore.Qt.DisplayRole:
+            if role!=QtCore.Qt.ItemDataRole.DisplayRole:
                 return QtCore.QAbstractItemModel.headerData(self,section,orientation,role)
                 
-            if orientation==QtCore.Qt.Horizontal:
+            if orientation==QtCore.Qt.Orientation.Horizontal:
                 # Use Excel-style column names (A-Z, AA-ZZ, AAA-ZZZ, ...).
                 string = ''
                 quot = section
@@ -1098,8 +1098,8 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
                 # Use row number (1-based) as row name.
                 return str(section+1)
 
-        def data(self,index,role=QtCore.Qt.DisplayRole):
-            if role==QtCore.Qt.DisplayRole or role==QtCore.Qt.EditRole:
+        def data(self,index,role=QtCore.Qt.ItemDataRole.DisplayRole):
+            if role==QtCore.Qt.ItemDataRole.DisplayRole or role==QtCore.Qt.ItemDataRole.EditRole:
                 irow = index.row()
                 val = None
                 if irow<len(self.arraydata):
@@ -1109,7 +1109,7 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
                         if val is not None and icol<len(val):
                             val = val[icol]
                 if val is None: return None
-                if role==QtCore.Qt.DisplayRole:
+                if role==QtCore.Qt.ItemDataRole.DisplayRole:
                     cls = self.node.getValueType(returnclass=True).elementclass
                     if not isinstance(val,cls): val = cls(val)
                     return val.toPrettyString()
@@ -1120,9 +1120,9 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
         def clearData(self,index):
             self.setData(index,None)
             
-        def setData(self,index,value,role=QtCore.Qt.EditRole):
+        def setData(self,index,value,role=QtCore.Qt.ItemDataRole.EditRole):
             # Only process edit role
-            if role!=QtCore.Qt.EditRole: return False
+            if role!=QtCore.Qt.ItemDataRole.EditRole: return False
             
             # Get value in native data type (convert from QVariant)
             if not value.isValid():
@@ -1160,7 +1160,7 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
             return True
 
         def flags(self,index):
-            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+            return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEditable
 
     def __init__(self,parent,node,**kwargs):
         QtWidgets.QTableView.__init__(self,parent)
@@ -1170,7 +1170,7 @@ class ArrayEditor(AbstractPropertyEditor,QtWidgets.QTableView):
         self.datamodel = None
 
     def keyPressEvent(self,event):
-        if event.key()==QtCore.Qt.Key_Delete:
+        if event.key()==QtCore.Qt.Key.Key_Delete:
             for ind in self.selectionModel().selectedIndexes():
                 self.datamodel.clearData(ind)
         else:
@@ -1296,7 +1296,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         else:
             return 2
 
-    def data(self,index,role=QtCore.Qt.DisplayRole):
+    def data(self,index,role=QtCore.Qt.ItemDataRole.DisplayRole):
         """Returns data for the given node (specified as index), and the given role.
         inherited from QtCore.QAbstractItemModel
         """
@@ -1309,7 +1309,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         node = index.internalPointer()
 
         # First handle roles that are shared over the whole row.
-        if role==QtCore.Qt.WhatsThisRole:
+        if role==QtCore.Qt.ItemDataRole.WhatsThisRole:
             templatenode = node.templatenode
             text = node.getText(detail=2)
             nodetype = node.getValueType()
@@ -1330,56 +1330,56 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
                 if templatenode.hasAttribute('minInclusive'): text += '\nminimum value: '+templatenode.getAttribute('minInclusive')
                 if templatenode.hasAttribute('maxInclusive'): text += '\nmaximum value: '+templatenode.getAttribute('maxInclusive')
             return text
-        elif role==QtCore.Qt.ForegroundRole:
+        elif role==QtCore.Qt.ItemDataRole.ForegroundRole:
             if self.nohide and not node.visible:
                 # If we should show hidden nodes too, color them blue to differentiate.
                 return QtGui.QColor(0,0,255)
             elif index.column()==1 and node.isReadOnly():
                 # Color read-only nodes grey to differentiate.
                 return QtGui.QColor(128,128,128)
-        elif self.checkboxes and role==QtCore.Qt.CheckStateRole:
+        elif self.checkboxes and role==QtCore.Qt.ItemDataRole.CheckStateRole:
             if node.canHaveValue():
                 # Node has own checkbox.
                 if node.getValue():
-                    return QtCore.Qt.Checked
+                    return QtCore.Qt.CheckState.Checked
                 else:
-                    return QtCore.Qt.Unchecked
+                    return QtCore.Qt.CheckState.Unchecked
             elif node.hasChildren():
                 # Node is parent of other nodes with their own checkbox; check value is derived from children.
                 state = None
                 for i in range(self.rowCount(index)):
-                    chstate = index.child(i,0).data(QtCore.Qt.CheckStateRole)
-                    if chstate==QtCore.Qt.PartiallyChecked:
-                        return QtCore.Qt.PartiallyChecked
+                    chstate = index.child(i,0).data(QtCore.Qt.ItemDataRole.CheckStateRole)
+                    if chstate==QtCore.Qt.CheckState.PartiallyChecked:
+                        return QtCore.Qt.CheckState.PartiallyChecked
                     elif state is None:
                         state = chstate
                     elif chstate!=state:
-                        return QtCore.Qt.PartiallyChecked
+                        return QtCore.Qt.CheckState.PartiallyChecked
                 return state
 
         # Now handle column-specific roles.
         if index.column()==0:
-            if role==QtCore.Qt.DisplayRole:
+            if role==QtCore.Qt.ItemDataRole.DisplayRole:
                 return node.getText(detail=1)
             else:
                 return None
         else:
             # We only process the 'display', 'decoration', 'edit' and 'font' roles.
-            if role not in (QtCore.Qt.DisplayRole,QtCore.Qt.EditRole,QtCore.Qt.FontRole): return None
+            if role not in (QtCore.Qt.ItemDataRole.DisplayRole,QtCore.Qt.ItemDataRole.EditRole,QtCore.Qt.ItemDataRole.FontRole): return None
 
             # Column 1 is only used for variables that can have a value.
             if not node.canHaveValue(): return None
 
             fieldtype = node.getValueType()
-            if role==QtCore.Qt.FontRole:
+            if role==QtCore.Qt.ItemDataRole.FontRole:
                 # Return bold font if the node value is set to something different than the default.
                 if self.typedstore.defaultstore is None: return None
                 font = QtGui.QFont()
                 font.setBold(not node.hasDefaultValue())
                 return font
-            elif role==QtCore.Qt.DisplayRole:
+            elif role==QtCore.Qt.ItemDataRole.DisplayRole:
                 return node.getValueAsString(usedefault=True)
-            elif role==QtCore.Qt.EditRole:
+            elif role==QtCore.Qt.ItemDataRole.EditRole:
                 value = node.getValue(usedefault=True)
                 if value is None: return None
                 editorclass = getEditor(fieldtype)
@@ -1390,7 +1390,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
             else:
                 assert False, 'Don\'t know how to handle role %s.' % role
 
-    def setData(self,index,value,role=QtCore.Qt.EditRole):
+    def setData(self,index,value,role=QtCore.Qt.ItemDataRole.EditRole):
         """Set data for the given node (specified as index), and the given role.
         inherited from QtCore.QAbstractItemModel
         """
@@ -1398,7 +1398,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         node = index.internalPointer()
 
         # Handle the case where nodes have checkboxes, and the check state changed.
-        if self.checkboxes and role==QtCore.Qt.CheckStateRole:
+        if self.checkboxes and role==QtCore.Qt.ItemDataRole.CheckStateRole:
             if node.canHaveValue():
                 node.setValue(value)
                 self.dataChanged.emit(index,index)
@@ -1406,7 +1406,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
                 checkroot = (not self.inheritingchecks)
                 self.inheritingchecks = True
                 for i in range(self.rowCount(index)):
-                    self.setData(index.child(i,0),value,role=QtCore.Qt.CheckStateRole)
+                    self.setData(index.child(i,0),value,role=QtCore.Qt.ItemDataRole.CheckStateRole)
                 self.dataChanged.emit(index,index)
                 if checkroot: self.inheritingchecks = False
             if not self.inheritingchecks:
@@ -1417,7 +1417,7 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
             return True
 
         # From this point on, we only process the EditRole for column 1.
-        if role!=QtCore.Qt.EditRole or index.column()!=1: return False
+        if role!=QtCore.Qt.ItemDataRole.EditRole or index.column()!=1: return False
 
         if not value.isValid():
             # An invalid QVariant was passed: clear the node value.
@@ -1446,25 +1446,25 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         if not index.isValid(): return QtCore.QAbstractItemModel.flags(self,index)
 
         # Default flags: selectable and enabled
-        f = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
+        f = QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEnabled
 
         node = index.internalPointer()
 
         # Add checkbox if needed
         if self.checkboxes:
-            f |= QtCore.Qt.ItemIsUserCheckable
-            if node.hasChildren(): f |= QtCore.Qt.ItemIsTristate
+            f |= QtCore.Qt.ItemFlag.ItemIsUserCheckable
+            if node.hasChildren(): f |= QtCore.Qt.ItemFlag.ItemIsUserTristate
 
         # Make editable if it's the 1st column and the node is editable.
-        if index.column()==1 and node.canHaveValue() and (not node.isReadOnly()): f |= QtCore.Qt.ItemIsEditable
-            
+        if index.column()==1 and node.canHaveValue() and (not node.isReadOnly()): f |= QtCore.Qt.ItemFlag.ItemIsEditable
+
         return f
 
     def headerData(self,section,orientation,role):
         """Returns the header for the given row or column (in our case columns only).
         inherited from QtCore.QAbstractItemModel
         """
-        if role==QtCore.Qt.DisplayRole:
+        if role==QtCore.Qt.ItemDataRole.DisplayRole:
             if section==0:
                 return 'variable'
             elif section==1:
@@ -1571,8 +1571,8 @@ class TypedStoreModel(QtCore.QAbstractItemModel):
         res = []
         for irow in range(self.rowCount(index)):
             child = self.index(irow,0,index)
-            state = child.data(QtCore.Qt.CheckStateRole)
-            if state==QtCore.Qt.Checked:
+            state = child.data(QtCore.Qt.ItemDataRole.CheckStateRole)
+            if state==QtCore.Qt.CheckState.Checked:
                 res.append(child.internalPointer())
             res += self.getCheckedNodes(child)
         return res
@@ -1646,7 +1646,7 @@ class ExtendedTreeView(QtWidgets.QTreeView):
 
         # Check whether we can reset the current value and/or its decendants. Stop if not.
         model = self.model()
-        resetself = (model.flags(valueindex) & QtCore.Qt.ItemIsEditable) and not model.hasDefaultValue(valueindex)
+        resetself = (model.flags(valueindex) & QtCore.Qt.ItemFlag.ItemIsEditable) and not model.hasDefaultValue(valueindex)
         resetchildren = model.hasChildren(nameindex)
         if not (resetself or resetchildren): return
         
@@ -1654,7 +1654,7 @@ class ExtendedTreeView(QtWidgets.QTreeView):
         menu = QtWidgets.QMenu(self)
         if resetself:     actReset = menu.addAction('Reset value')
         if resetchildren: actResetChildren = menu.addAction('Reset entire branch')
-        actChosen = menu.exec_(e.globalPos())
+        actChosen = menu.exec(e.globalPos())
         if resetself and actChosen is actReset:
             model.resetData(nameindex)
         elif resetchildren and actChosen is actResetChildren:
@@ -1735,8 +1735,8 @@ class PropertyEditorDialog(QtWidgets.QDialog):
     Incoporates the ExtendedTreeView attached to a TypedStoreModel.
     """
     
-    def __init__(self,parent,store,title='',instructions='',loadsave=False,flags=QtCore.Qt.Dialog,icon=None,loadhook=None,rootnode=None):
-        if icon is not None: flags |= QtCore.Qt.WindowSystemMenuHint
+    def __init__(self,parent,store,title='',instructions='',loadsave=False,flags=QtCore.Qt.WindowType.Dialog,icon=None,loadhook=None,rootnode=None):
+        if icon is not None: flags |= QtCore.Qt.WindowType.WindowSystemMenuHint
         QtWidgets.QDialog.__init__(self, parent, flags)
 
         self.store = store
@@ -1781,13 +1781,13 @@ class PropertyEditorDialog(QtWidgets.QDialog):
     def resizeColumns(self):
         """Intelligently resize the column widths.
         """
-        self.tree.header().resizeSections(QtWidgets.QHeaderView.Stretch)
+        self.tree.header().resizeSections(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.tree.resizeColumnToContents(0)
         maxwidth = int(0.65 * self.width())
         if self.tree.columnWidth(0)>maxwidth: self.tree.setColumnWidth(0,maxwidth)
 
     def onLoad(self):
-        path,selectedFilter = QtWidgets.QFileDialog.getOpenFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
+        path,selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
         path = unicode(path)
         if path=='': return
         try:
@@ -1800,7 +1800,7 @@ class PropertyEditorDialog(QtWidgets.QDialog):
         self.lastpath = path
 
     def onSave(self):
-        path,selectedFilter = QtWidgets.QFileDialog.getSaveFileNameAndFilter(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
+        path,selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self,'',self.lastpath,'XML files (*.xml);;All files (*.*)')
         path = unicode(path)
         if path=='': return
         self.store.save(path)
@@ -2176,5 +2176,5 @@ class PropertyEditor(object):
             return ret
         elif nodetype=='bool':
             # Checkbox for boolean
-            return node.setValue(editor.checkState()==QtCore.Qt.Checked)
+            return node.setValue(editor.checkState()==QtCore.Qt.CheckState.Checked)
             
